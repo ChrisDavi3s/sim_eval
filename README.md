@@ -125,6 +125,10 @@ Energy Metrics (vs DFT (PBE)):
 
 ![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/9e9bc19d-18b6-4e25-a533-b8cd4063b593)
 
+### Plotting two different nequip models against a VASP run:
+
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/60a1fb75-46b7-4c02-82a5-9ee00f4e3895)
+
 
 
 

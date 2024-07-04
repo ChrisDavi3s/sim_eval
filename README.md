@@ -7,7 +7,7 @@ It's particularly useful for benchmarking machine learning potentials (like thos
 ## Features
 
 - Load and process molecular dynamics generated frames
-- 
+
 - Compare energy, forces, and stress predictions from different calculators against some reference benchmark method
 
 - Calculate various error metrics (MAE, RMSE, correlation)

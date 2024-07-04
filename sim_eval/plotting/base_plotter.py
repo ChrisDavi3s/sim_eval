@@ -11,6 +11,20 @@ class BasePlotter:
     @classmethod
     def _create_scatter_plot(cls, ax, reference_data: np.ndarray, target_data: np.ndarray, 
                              reference_calculator: PropertyCalculator, target_calculator: PropertyCalculator) -> plt.Axes:
+        """
+        Create a scatter plot comparing reference and target data.
+
+        Args:
+            ax (plt.Axes): The matplotlib axes to plot on.
+            reference_data (np.ndarray): Data from the reference calculator.
+            target_data (np.ndarray): Data from the target calculator.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculator (PropertyCalculator): The target calculator.
+
+        Returns:
+            plt.Axes: The matplotlib axes with the scatter plot.
+        """
+
         ax.scatter(reference_data.flatten(), target_data.flatten(), alpha=0.6, color='black', s=20, edgecolors='none')
 
         all_data = np.concatenate([reference_data.flatten(), target_data.flatten()])
@@ -31,9 +45,20 @@ class BasePlotter:
         ax.set_aspect('equal', adjustable='box')
 
         return ax
-
+   
     @classmethod
     def _add_metrics_to_plot(cls, ax, frames, reference_calculator, target_calculator, frame_number):
+        """
+        Add metric statistics to the plot.
+
+        Args:
+            ax (plt.Axes): The matplotlib axes to add text to.
+            frames (Frames): The Frames object containing the data.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculator (PropertyCalculator): The target calculator.
+            frame_number (Union[int, slice]): The frame number(s) to calculate metrics for.
+        """
+
         mae = frames.get_mae(cls.PROPERTY, reference_calculator, target_calculator, frame_number)
         rmse = frames.get_rmse(cls.PROPERTY, reference_calculator, target_calculator, frame_number)
         correlation = frames.get_correlation(cls.PROPERTY, reference_calculator, target_calculator, frame_number)
@@ -47,6 +72,18 @@ class BasePlotter:
     def plot_scatter(cls, frames: Frames, reference_calculator: PropertyCalculator, 
                      target_calculator: PropertyCalculator, frame_number: Union[int, slice] = slice(None),
                      title: str = None, display_metrics: bool = True):
+        """
+        Create and display a scatter plot comparing reference and target data.
+
+        Args:
+            frames (Frames): The Frames object containing the data.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculator (PropertyCalculator): The target calculator.
+            frame_number (Union[int, slice], optional): The frame number(s) to plot. Defaults to all frames.
+            title (str, optional): The title of the plot. Defaults to None.
+            display_metrics (bool, optional): Whether to display metric statistics. Defaults to True.
+        """
+
         if cls.PROPERTY is None:
             raise NotImplementedError("Subclasses must define PROPERTY")
 
@@ -69,7 +106,17 @@ class BasePlotter:
     def plot_all_scatter(cls, frames: Frames, reference_calculator: PropertyCalculator,
                          target_calculator: PropertyCalculator, frame_number: Union[int, slice] = slice(None),
                          display_metrics: bool = True):
-        
+        """
+        Create and display scatter plots for energy, forces, and stress.
+
+        Args:
+            frames (Frames): The Frames object containing the data.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculator (PropertyCalculator): The target calculator.
+            frame_number (Union[int, slice], optional): The frame number(s) to plot. Defaults to all frames.
+            display_metrics (bool, optional): Whether to display metric statistics. Defaults to True.
+        """
+
         # Avoid circular import
         from ..plotting import EnergyPlotter, ForcesPlotter, StressPlotter
 
@@ -95,6 +142,16 @@ class BasePlotter:
                  target_calculators: Union[PropertyCalculator, List[PropertyCalculator]], 
                  frame_number: Union[int, slice] = slice(None),
                  per_atom: bool = False):
+        """
+        Create and display a box plot of errors.
+
+        Args:
+            frames (Frames): The Frames object containing the data.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculators (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
+            frame_number (Union[int, slice], optional): The frame number(s) to plot. Defaults to all frames.
+            per_atom (bool, optional): Whether to calculate errors per atom. Defaults to False.
+        """
         if cls.PROPERTY is None:
             raise NotImplementedError("Subclasses must define PROPERTY")
 
@@ -143,6 +200,18 @@ class BasePlotter:
 
     @classmethod
     def format_metrics(cls, mae, rmse, correlation, add_whitespace=""):
+        """
+        Format the metrics for display.
+
+        Args:
+            mae (float): Mean Absolute Error.
+            rmse (float): Root Mean Square Error.
+            correlation (float): Correlation coefficient.
+            add_whitespace (str, optional): Additional whitespace to add. Defaults to "".
+
+        Returns:
+            str: Formatted string of metrics.
+        """
         raise NotImplementedError("Subclasses must implement format_metrics method")
 
     @classmethod
@@ -150,30 +219,13 @@ class BasePlotter:
                       reference_calculator : PropertyCalculator, 
                       target_calculators : Union[PropertyCalculator, List[PropertyCalculator]],
                       frame_number: Union[int, slice] = slice(None)):
+        """
+        Print the metrics comparing reference and target calculators.
+
+        Args:
+            frames (Frames): The Frames object containing the data.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculators (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
+            frame_number (Union[int, slice], optional): The frame number(s) to calculate metrics for. Defaults to all frames.
+        """
         raise NotImplementedError("Subclasses must implement print_metrics method")
-
-class EnergyPlotter(BasePlotter):
-    PROPERTY = Property.ENERGY
-
-    @classmethod
-    def format_metrics(cls, mae, rmse, correlation, add_whitespace=""):
-        return (f"{add_whitespace}MAE: {mae:.6f} {cls.PROPERTY.get_units()}\n"
-                f"{add_whitespace}RMSE: {rmse:.6f} {cls.PROPERTY.get_units()}\n"
-                f"{add_whitespace}Correlation: {correlation:.6f}")
-
-    @classmethod
-    def print_metrics(cls, frames, reference_calculator, target_calculators, frame_number: Union[int, slice] = slice(None)):
-        print(f"\nEnergy Metrics (vs {reference_calculator.name}):")
-        print("---------------")
-        for target_calc in (target_calculators if isinstance(target_calculators, list) else [target_calculators]):
-            mae = frames.get_mae(cls.PROPERTY, reference_calculator, target_calc, frame_number)
-            rmse = frames.get_rmse(cls.PROPERTY, reference_calculator, target_calc, frame_number)
-            correlation = frames.get_correlation(cls.PROPERTY, reference_calculator, target_calc, frame_number)
-            
-            num_atoms = frames.get_number_of_atoms()
-        
-            print(f"\n  {target_calc.name}:")
-            print(cls.format_metrics(mae, rmse, correlation, "    "))
-            print(f"    MAE (average per atom): {mae/num_atoms:.6f} {cls.PROPERTY.get_units()}")
-            print(f"    RMSE (average per atom): {rmse/num_atoms:.6f} {cls.PROPERTY.get_units()}")
-

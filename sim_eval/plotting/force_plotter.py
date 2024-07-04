@@ -11,15 +11,37 @@ class ForcesPlotter(BasePlotter):
 
     @classmethod
     def format_metrics(cls, mae, rmse, correlation, add_whitespace=""):
+        """
+        Format the forces metrics for display.
+
+        Args:
+            mae (np.ndarray): Mean Absolute Error of forces.
+            rmse (np.ndarray): Root Mean Square Error of forces.
+            correlation (np.ndarray): Correlation coefficient of forces.
+            add_whitespace (str, optional): Additional whitespace to add. Defaults to "".
+
+        Returns:
+            str: Formatted string of forces metrics.
+        """
         return (f"{add_whitespace}MAE: {np.mean(mae):.6f} {cls.PROPERTY.get_units()}\n"
                 f"{add_whitespace}RMSE: {np.mean(rmse):.6f} {cls.PROPERTY.get_units()}\n"
                 f"{add_whitespace}Correlation: {np.mean(correlation):.6f}")
 
     @classmethod
     def print_metrics(cls, frames: Frames, 
-                      reference_calculator : PropertyCalculator, 
-                      target_calculators : Union[PropertyCalculator, List[PropertyCalculator]],
+                      reference_calculator: PropertyCalculator, 
+                      target_calculators: Union[PropertyCalculator, List[PropertyCalculator]],
                       frame_number: Union[int, slice] = slice(None)):
+        """
+        Print the forces metrics comparing reference and target calculators.
+
+        Args:
+            frames (Frames): The Frames object containing the data.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculators (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
+            frame_number (Union[int, slice], optional): The frame number(s) to calculate metrics for. Defaults to all frames.
+        """
+
         print(f"\nForces Metrics (vs {reference_calculator.name}):")
         print("----------------")
         for target_calc in (target_calculators if isinstance(target_calculators, list) else [target_calculators]):
@@ -48,6 +70,18 @@ class ForcesPlotter(BasePlotter):
                  target_calculators: Union[PropertyCalculator, List[PropertyCalculator]],
                  frame_number: Union[int, slice] = slice(None),
                  per_atom: bool = False):
+        """
+        Create and display a box plot of force errors.
+
+        Args:
+            frames (Frames): The Frames object containing the data.
+            reference_calculator (PropertyCalculator): The reference calculator.
+            target_calculators (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
+            frame_number (Union[int, slice], optional): The frame number(s) to plot. Defaults to all frames.
+            per_atom (bool, optional): Whether to calculate errors per atom. Defaults to False. For this implementation,
+            we list atoms per atom type.
+        """
+
         if not isinstance(target_calculators, list):
             target_calculators = [target_calculators]
 

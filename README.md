@@ -95,6 +95,8 @@ BasePlotter.plot_all_scatter(frames, vasp_calc, nequip_calc)
 
 ## OUTPUTS 
 
+### EnergyPlotter.print_metrics(frames, vasp_calc, nequip_calc)
+
 ```md
 
 Energy Metrics (vs DFT (PBE)):

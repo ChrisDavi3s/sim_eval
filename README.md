@@ -14,39 +14,6 @@ Generate publication-quality plots for easy comparison and analysis
 
 **Most plotters will accept MULTIPLE target systems allowing comparison of methods against each other on the SAME plot.**
 
-### Scatter plots
-```python
-(method) def plot_scatter(
-    frames: Frames,
-    reference_calculator: PropertyCalculator,
-    target_calculator: PropertyCalculator,
-    frame_number: int | slice = slice(None),
-    title: str = None,
-    display_metrics: bool = True
-) -> None
-```
-
-### Box plots
-```python
-(method) def plot_box(
-    frames: Frames,
-    reference_calculator: PropertyCalculator,
-    target_calculators: PropertyCalculator | List[PropertyCalculator],
-    frame_number: int | slice = slice(None),
-    per_atom: bool = False
-) -> None
-```
-
-### Metrics
-
-```python
-(method) def print_metrics(
-    frames: Frames,
-    reference_calculator: PropertyCalculator,
-    target_calculators: PropertyCalculator | List[PropertyCalculator],
-    frame_number: int | slice = slice(None)
-) -> None
-```
 ## Currently Implemented Comparisons
 - Nequip / Allegro
 - VASP
@@ -132,5 +99,40 @@ Energy Metrics (vs DFT (PBE)):
 ![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/60a1fb75-46b7-4c02-82a5-9ee00f4e3895)
 
 
+## Quick API overview: 
+
+### Scatter plots
+```python
+(method) def plot_scatter(
+    frames: Frames,
+    reference_calculator: PropertyCalculator,
+    target_calculator: PropertyCalculator,
+    frame_number: int | slice = slice(None),
+    title: str = None,
+    display_metrics: bool = True
+) -> None
+```
+
+### Box plots
+```python
+(method) def plot_box(
+    frames: Frames,
+    reference_calculator: PropertyCalculator,
+    target_calculators: PropertyCalculator | List[PropertyCalculator],
+    frame_number: int | slice = slice(None),
+    per_atom: bool = False
+) -> None
+```
+
+### Metrics
+
+```python
+(method) def print_metrics(
+    frames: Frames,
+    reference_calculator: PropertyCalculator,
+    target_calculators: PropertyCalculator | List[PropertyCalculator],
+    frame_number: int | slice = slice(None)
+) -> None
+```
 
 

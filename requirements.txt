@@ -1,0 +1,7 @@
+numpy
+matplotlib
+ase
+tqdm
+scipy
+# Optional dependencies
+nequip

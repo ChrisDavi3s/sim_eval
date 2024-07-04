@@ -46,8 +46,7 @@ Generate publication-quality plots for easy comparison and analysis
     target_calculators: PropertyCalculator | List[PropertyCalculator],
     frame_number: int | slice = slice(None)
 ) -> None
-'''
-
+```
 ## Currently Implemented Comparisons
 - Nequip / Allegro
 - VASP

@@ -27,7 +27,7 @@ pip install git+https://github.com/ChrisDavi3s/sim_eval.git
 
 ## Standalone Notebook
 
-For those unwilling to install, please see our standalone notebook for a ready to go implementation of the library. The notebook can be found @ stand_alone_notebook.ipynb.
+For those unwilling to install, please see the standalone notebook for a ready to go implementation of the library. The notebook can be found @ stand_alone_notebook.ipynb.
 
 ## Quick Start
 

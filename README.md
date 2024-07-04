@@ -6,11 +6,11 @@ It's particularly useful for benchmarking machine learning potentials (like thos
 
 ## Features
 
-Load and process molecular dynamics trajectories
-Compare energy, forces, and stress predictions from different calculators
+- Load and process molecular dynamics trajectories
+- Compare energy, forces, and stress predictions from different calculators
 
-Calculate various error metrics (MAE, RMSE, correlation)
-Generate publication-quality plots for easy comparison and analysis
+- Calculate various error metrics (MAE, RMSE, correlation)
+- Generate publication-quality plots for easy comparison and analysis
 
 **Most plotters will accept MULTIPLE target systems allowing comparison of methods against each other on the SAME plot.**
 

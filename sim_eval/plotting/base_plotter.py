@@ -146,7 +146,10 @@ class BasePlotter:
         raise NotImplementedError("Subclasses must implement format_metrics method")
 
     @classmethod
-    def print_metrics(cls, frames, reference_calculator, target_calculators, frame_number: Union[int, slice] = slice(None)):
+    def print_metrics(cls, frames: Frames, 
+                      reference_calculator : PropertyCalculator, 
+                      target_calculators : Union[PropertyCalculator, List[PropertyCalculator]],
+                      frame_number: Union[int, slice] = slice(None)):
         raise NotImplementedError("Subclasses must implement print_metrics method")
 
 class EnergyPlotter(BasePlotter):

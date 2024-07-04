@@ -2,7 +2,9 @@ from .base_plotter import BasePlotter
 from typing import Union
 import matplotlib.pyplot as plt
 from ..property import Property
-
+from ..frames import Frames
+from ..calculators import PropertyCalculator
+from typing import List
 
 class EnergyPlotter(BasePlotter):
     PROPERTY = Property.ENERGY
@@ -14,7 +16,10 @@ class EnergyPlotter(BasePlotter):
                 f"{add_whitespace}Correlation: {correlation:.6f}")
 
     @classmethod
-    def print_metrics(cls, frames, reference_calculator, target_calculators, frame_number: Union[int, slice] = slice(None)):
+    def print_metrics(cls, frames: Frames, 
+                      reference_calculator : PropertyCalculator, 
+                      target_calculators : Union[PropertyCalculator, List[PropertyCalculator]],
+                      frame_number: Union[int, slice] = slice(None)):
         print(f"\nEnergy Metrics (vs {reference_calculator.name}):")
         print("---------------")
         for target_calc in (target_calculators if isinstance(target_calculators, list) else [target_calculators]):

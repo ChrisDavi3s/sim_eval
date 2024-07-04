@@ -12,6 +12,42 @@ Compare energy, forces, and stress predictions from different calculators
 Calculate various error metrics (MAE, RMSE, correlation)
 Generate publication-quality plots for easy comparison and analysis
 
+**Most plotters will accept MULTIPLE target systems allowing comparison of methods against each other on the SAME plot.**
+
+### Scatter plots
+```python
+(method) def plot_scatter(
+    frames: Frames,
+    reference_calculator: PropertyCalculator,
+    target_calculator: PropertyCalculator,
+    frame_number: int | slice = slice(None),
+    title: str = None,
+    display_metrics: bool = True
+) -> None
+```
+
+### Box plots
+```python
+(method) def plot_box(
+    frames: Frames,
+    reference_calculator: PropertyCalculator,
+    target_calculators: PropertyCalculator | List[PropertyCalculator],
+    frame_number: int | slice = slice(None),
+    per_atom: bool = False
+) -> None
+```
+
+### Metrics
+
+```python
+(method) def print_metrics(
+    frames: Frames,
+    reference_calculator: PropertyCalculator,
+    target_calculators: PropertyCalculator | List[PropertyCalculator],
+    frame_number: int | slice = slice(None)
+) -> None
+'''
+
 ## Currently Implemented Comparisons
 - Nequip / Allegro
 - VASP
@@ -48,9 +84,48 @@ nequip_calc = NequIPPropertyCalculator('Allegro', 'nequip_model.pth')
 frames.add_method_data(vasp_calc)
 frames.add_method_data(nequip_calc)
 
+#Print Metrics
+EnergyPlotter.print_metrics(frames, vasp_calc, nequip_calc)
+
 # Generate plots
 EnergyPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
 ForcesPlotter.plot_box(frames, vasp_calc, nequip_calc, per_atom=True)
 StressPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
 BasePlotter.plot_all_scatter(frames, vasp_calc, nequip_calc)
 ```
+
+## OUTPUTS 
+
+```md
+
+Energy Metrics (vs DFT (PBE)):
+---------------
+
+  Allegro:
+    MAE: 0.435113 eV
+    RMSE: 0.458745 eV
+    Correlation: 0.995340
+    MAE (average per atom): 0.002092 eV
+    RMSE (average per atom): 0.002206 eV
+
+```
+
+### EnergyPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
+
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/cfa9bd21-7cd7-4602-a61a-f9e07802a1f1)
+
+### ForcesPlotter.plot_box(frames, vasp_calc, nequip_calc, per_atom=True)
+
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/549bad78-18cc-4b4b-a251-6b386f84ec11)
+
+### StressPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
+
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/38edbb8f-402c-40a4-9b8d-66f1bb9ce8a5)
+
+### BasePlotter.plot_all_scatter(frames, vasp_calc, nequip_calc)
+
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/9e9bc19d-18b6-4e25-a533-b8cd4063b593)
+
+
+
+

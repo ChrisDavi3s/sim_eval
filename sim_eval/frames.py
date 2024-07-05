@@ -197,19 +197,27 @@ class Frames:
         for calc in target_calculators:
             target_data = self.get_property_magnitude(property, calc, frame_number)
             if property == Property.ENERGY:
+                # For ENERGY: Calculate MAE across all structures
+                # Result: Single scalar value representing average error in energy across all frames
                 mae = np.mean(np.abs(reference_data - target_data))
             elif property == Property.FORCES:
+                # For FORCES: Calculate MAE for each atom, averaged over all structures
+                # Result: 1D array with length equal to number of atoms, each value represents average error in force for that atom
                 mae = np.mean(np.abs(reference_data - target_data), axis=0)
             elif property == Property.STRESS:
+                # For STRESS: Calculate MAE across all structures
+                # Result: Single scalar value representing average error in stress across all frames
                 mae = np.mean(np.abs(reference_data - target_data))
             maes.append(mae)
         
         return maes[0] if len(maes) == 1 else maes
 
+
+
     def get_rmse(self, property: Property, 
-                reference_calculator: 'PropertyCalculator', 
-                target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
-                frame_number: Optional[Union[int, slice]] = slice(None)) -> Union[float, List[np.ndarray], List[float]]:
+                 reference_calculator: 'PropertyCalculator', 
+                 target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
+                 frame_number: Optional[Union[int, slice]] = slice(None)) -> Union[float, List[np.ndarray], List[float]]:
         """
         Calculate Root Mean Square Error (RMSE) across all specified frames.
 
@@ -236,15 +244,21 @@ class Frames:
         for calc in target_calculators:
             target_data = self.get_property_magnitude(property, calc, frame_number)
             if property == Property.ENERGY:
+                # For ENERGY: Calculate RMSE across all structures
+                # Result: Single scalar value representing root mean square error in energy across all frames
                 rmse = np.sqrt(np.mean((reference_data - target_data) ** 2))
             elif property == Property.FORCES:
-                rmse = np.sqrt(np.mean((reference_data - target_data) ** 2, axis=0))  # Mean over frames, keeping per-atom dimension
+                # For FORCES: Calculate RMSE for each atom, across all structures
+                # Result: 1D array with length equal to number of atoms, each value represents root mean square error in force for that atom
+                rmse = np.sqrt(np.mean((reference_data - target_data) ** 2, axis=0))
             elif property == Property.STRESS:
+                # For STRESS: Calculate RMSE across all structures
+                # Result: Single scalar value representing root mean square error in stress across all frames
                 rmse = np.sqrt(np.mean((reference_data - target_data) ** 2))
             rmses.append(rmse)
         
         return rmses[0] if len(rmses) == 1 else rmses
-    
+
     def get_correlation(self, property: Property, 
                         reference_calculator: 'PropertyCalculator', 
                         target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
@@ -275,17 +289,22 @@ class Frames:
         for calc in target_calculators:
             target_data = self.get_property_magnitude(property, calc, frame_number)
             if property == Property.ENERGY:
+                # For ENERGY: Calculate Pearson correlation coefficient across all structures
+                # Result: Single scalar value representing correlation of energies across all frames
                 if reference_data.size < 2 or target_data.size < 2:
                     correlation = np.nan  # Not enough data points to compute correlation
                 else:
                     correlation = pearsonr(reference_data, target_data)[0]
             elif property == Property.FORCES:
+                # For FORCES: Calculate Pearson correlation coefficient for each atom, across all structures
+                # Result: 1D array with length equal to number of atoms, each value represents correlation of forces for that atom
                 if reference_data.shape[0] < 2:
                     correlation = np.full(reference_data.shape[1], np.nan)  # Not enough frames to compute correlation per atom
                 else:
-                    # Calculate correlation for each atom across frames
                     correlation = np.array([pearsonr(reference_data[:, atom], target_data[:, atom])[0] for atom in range(reference_data.shape[1])])
             elif property == Property.STRESS:
+                # For STRESS: Calculate Pearson correlation coefficient across all structures
+                # Result: Single scalar value representing correlation of stresses across all frames
                 if reference_data.size < 2 or target_data.size < 2:
                     correlation = np.nan  # Not enough data points to compute correlation
                 else:
@@ -293,3 +312,4 @@ class Frames:
             correlations.append(correlation)
         
         return correlations[0] if len(correlations) == 1 else correlations
+

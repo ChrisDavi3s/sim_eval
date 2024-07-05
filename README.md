@@ -82,7 +82,7 @@ BasePlotter.plot_all_scatter(frames, vasp_calc, nequip_calc)
 ## OUTPUTS 
 
 ### EnergyPlotter.print_metrics(frames, vasp_calc, nequip_calc)
-
+(A good model vs a bad model)
 ```md
 
 Energy Metrics (vs DFT (PBE)):
@@ -95,6 +95,12 @@ Energy Metrics (vs DFT (PBE)):
     MAE (average per atom): 0.002092 eV
     RMSE (average per atom): 0.002206 eV
 
+  Allegro (2):
+    MAE: 735.355491 eV
+    RMSE: 735.355548 eV
+    Correlation: 0.990630
+    MAE (average per atom): 3.535363 eV
+    RMSE (average per atom): 3.535363 eV
 ```
 
 ### EnergyPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
@@ -164,6 +170,8 @@ class Frames(
 ) -> None
 ```
 ## Testing
+
+Github has a CI pipeline that runs the tests on every push. The tests are also run on every pull request (I think?).
 
 Test are written using the unittest module. To run the tests, navigate to the root directory of the project and run:
 

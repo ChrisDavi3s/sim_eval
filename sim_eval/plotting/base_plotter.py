@@ -9,8 +9,12 @@ class BasePlotter:
     PROPERTY = None 
 
     @classmethod
-    def _create_scatter_plot(cls, ax, reference_data: np.ndarray, target_data: np.ndarray, 
-                             reference_calculator: PropertyCalculator, target_calculator: PropertyCalculator) -> plt.Axes:
+    def _create_scatter_plot(cls,
+                             ax,
+                             reference_data: np.ndarray,
+                             target_data: np.ndarray,
+                             reference_calculator: PropertyCalculator,
+                             target_calculator: PropertyCalculator) -> plt.Axes:
         """
         Create a scatter plot comparing reference and target data.
 
@@ -64,6 +68,8 @@ class BasePlotter:
         correlation = frames.get_correlation(cls.PROPERTY, reference_calculator, target_calculator, frame_number)
         
         stats_text = cls.format_metrics(mae, rmse, correlation)
+        metric_prefic = "Metrics (per atom):\n" if cls.PROPERTY == Property.FORCES else "Metrics (per structure):\n"
+        stats_text = metric_prefic + stats_text
         ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
                 fontsize=8, verticalalignment='top',
                 bbox=dict(boxstyle='round', facecolor='white', edgecolor='none', alpha=0.8))

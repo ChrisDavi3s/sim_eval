@@ -105,7 +105,8 @@ Energy Metrics (vs DFT (PBE)):
 
 ### EnergyPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
 
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/cfa9bd21-7cd7-4602-a61a-f9e07802a1f1)
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/ec69853b-e819-46e2-85a5-22fbc29c9f77)
+
 
 ### ForcesPlotter.plot_box(frames, vasp_calc, nequip_calc, per_atom=True)
 
@@ -113,11 +114,11 @@ Energy Metrics (vs DFT (PBE)):
 
 ### StressPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
 
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/38edbb8f-402c-40a4-9b8d-66f1bb9ce8a5)
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/5ecc06cc-0352-4e09-8ee0-b025a2d6ce3a)
 
 ### BasePlotter.plot_all_scatter(frames, vasp_calc, nequip_calc)
 
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/9e9bc19d-18b6-4e25-a533-b8cd4063b593)
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/53e28a17-f518-472d-be77-74a208875d8b)
 
 ### Plotting two different nequip models against a VASP run:
 

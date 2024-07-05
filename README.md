@@ -120,6 +120,16 @@ Energy Metrics (vs DFT (PBE)):
 
 ## Quick API overview: 
 
+### Loading Frames
+
+```python
+class Frames(
+    file_path: str,
+    format: str | None = None,
+    index: int | str = ':'
+)
+```
+
 ### Scatter plots
 ```python
 (method) def plot_scatter(

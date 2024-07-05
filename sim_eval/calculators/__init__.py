@@ -31,8 +31,8 @@ CHGNetPropertyCalculator = import_optional('chgnet', 'CHGNet', 'pip install chgn
 MACEPropertyCalculator = import_optional('mace', 'MACE', 'pip install mace-torch')
 
 
-__all__ = ['PropertyCalculator', 
-           'VASPXMLPropertyCalculator', 
-           'NequIPPropertyCalculator', 
+__all__ = ['PropertyCalculator',
+           'VASPXMLPropertyCalculator',
+           'NequIPPropertyCalculator',
            'CHGNetPropertyCalculator',
            'MACEPropertyCalculator']

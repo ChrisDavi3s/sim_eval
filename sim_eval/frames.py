@@ -1,34 +1,63 @@
 from collections import defaultdict
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 import numpy as np
 from ase.io import read
 from scipy.stats import pearsonr
 from .property import Property
+from .calculators import PropertyCalculator
+from ase.atoms import Atoms
+
 
 class Frames:
-    def __init__(self, xyz_file):
-        self.xyz_file = xyz_file
-        self.frames = read(self.xyz_file, index=':')
+    """
+    This class is used to store and manage atomic structures for property calculations.
+    It supports reading frames from any format that ASE can read.
+    """
+    def __init__(self, file_path: str, format: Optional[str] = None, index: Union[int, str] = ':'):
+        """
+        Initialize Frames object.
 
-    def __len__(self):
+        Args:
+            file_path (str): Path to the file containing atomic structures.
+            format (Optional[str]): File format. If None, ASE will try to guess the format.
+            index (Union[int, str]): Which frame(s) to read. Default ':' reads all frames.
+
+        Raises:
+            ValueError: If no frames are loaded.
+        """
+        self.file_path = file_path
+        self.frames: List[Atoms] = read(self.file_path, index=index, format=format)
+        if not self.frames:
+            raise ValueError("No frames were loaded from the file.")
+        if not isinstance(self.frames, list):
+            self.frames = [self.frames]
+
+    def __len__(self) -> int:
         return len(self.frames)
     
-    def get_number_of_atoms(self):
+    def get_number_of_atoms(self) -> int:
+        """Get the number of atoms in each frame."""
         return len(self.frames[0])
     
-    def get_atom_types_and_indices(self) -> dict[str: List[int]]:
+    def get_atom_types_and_indices(self) -> Dict[str, List[int]]:
         """
         Get the atom types and their corresponding indices.
 
         Returns:
-            dict{'str': List[int]}: Dictionary with atom types as keys and their indices as values.
+            Dict[str, List[int]]: Dictionary with atom types as keys and their indices as values.
         """
-        atom_types = defaultdict(list)
+        atom_types: Dict[str, List[int]] = defaultdict(list)
         for i, atom in enumerate(self.frames[0]):
             atom_types[atom.symbol].append(i)
-        return atom_types
+        return dict(atom_types)
 
-    def add_method_data(self, method):
+    def add_method_data(self, method: 'PropertyCalculator') -> None:
+        """
+        Compute properties using the given method and add them to the frames.
+
+        Args:
+            method (PropertyCalculator): The calculator to use for property computation.
+        """
         method.compute_properties(self)
 
     def get_property(self, property: Property, 

@@ -163,5 +163,22 @@ class Frames(
     frame_number: int | slice = slice(None)
 ) -> None
 ```
+## Testing
+
+Test are written using the unittest module. To run the tests, navigate to the root directory of the project and run:
+
+```bash
+python -m unittest discover
+```
+
+or use the interface in your favourite IDE.
+
+
+## Contributing
+
+Pull requests are welcome. I am happy to help with any issues you may have. For major changes, please open an issue first to discuss what you would like to change.
+
+Please make sure to update tests as appropriate. (I am aware the test coverage is not great, I am working on it!)
+
 
 ❤️

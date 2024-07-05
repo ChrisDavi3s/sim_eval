@@ -7,3 +7,4 @@ scipy
 # Optional dependencies
 nequip; extra == 'nequip'
 chgnet; extra == 'chgnet'
+mace-torch; extra == 'mace'

@@ -28,7 +28,7 @@ You have some structures (called frames in code) and have some associated calcul
   ```python
    VASPXMLPropertyCalculator()
   ```
-- (Anything with an ASE simulator)
+- (Anything with an ASE simulator) see https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
 
 ## Installation
 To install the SimulationBenchmarks library directly from GitHub, run:

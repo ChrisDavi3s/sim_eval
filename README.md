@@ -4,6 +4,10 @@ sim_eval (better name suggestions appreciated) is a Python library for analyzing
 
 It's particularly useful for benchmarking machine learning potentials (like those from NequIP/Allegro) against reference calculations (such as VASP DFT).
 
+## Use Case
+
+You have some structures (called frames in code) and have some associated calculations / a trained model that can calculate properties for those atoms look no further!
+
 ## Features
 
 - Load and process molecular dynamics generated frames

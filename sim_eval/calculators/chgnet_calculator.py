@@ -1,22 +1,27 @@
 from tqdm import tqdm
-from nequip.ase import NequIPCalculator
+from chgnet.model import CHGNetCalculator
 from .base_calculator import PropertyCalculator
 
-class NequIPPropertyCalculator(PropertyCalculator):
-    '''
-    Implementation of PropertyCalculator for NequIP models (.pth files)
-    '''
-    def __init__(self, name, model_path, has_energy=True, has_forces=True, has_stress=True):
-        if NequIPCalculator is None:
-            raise ImportError("NequIP is not installed. Please install it using 'pip install SimulationBenchmarks[nequip]'.")
+class CHGNetPropertyCalculator(PropertyCalculator):
+    """
+    Implementation of PropertyCalculator for CHGNet models
+    """
+    def __init__(self, name, model_path=None, has_energy=True, has_forces=True, has_stress=True):
+        if CHGNetCalculator is None:
+            raise ImportError("CHGNet is not installed. Please install it using 'pip install chgnet'.")
         super().__init__(name, has_energy, has_forces, has_stress)
         self.model_path = model_path
 
     def compute_properties(self, trajectory):
-        if NequIPCalculator is None:
-            raise ImportError("NequIP is not installed. Please install it using 'pip install SimulationBenchmarks[nequip]'.")
-        calc = NequIPCalculator.from_deployed_model(self.model_path)
+        if CHGNetCalculator is None:
+            raise ImportError("CHGNet is not installed. Please install it using 'pip install chgnet'.")
         
+        # If model_path is provided, load a specific model. Otherwise, use the default model.
+        if self.model_path:
+            calc = CHGNetCalculator(model_path=self.model_path)
+        else:
+            calc = CHGNetCalculator()
+
         for i, atom in tqdm(enumerate(trajectory.frames), total=len(trajectory.frames), desc=f"Computing {self.name} properties"):
             atom.calc = calc
             if self.has_energy:

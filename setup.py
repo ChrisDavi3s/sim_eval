@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sim_eval",
-    version="0.1.0",
+    version="0.2",
     description="A library for benchmarking simulation methods using various ASE calculators.",
     author="Chris Davies",
     author_email="",
@@ -14,10 +14,11 @@ setup(
         "ase",
         "tqdm",
         "scipy",
-        "nequip"
     ],
     extras_require={
         "nequip": ["nequip"],
+        "chgnet": ["chgnet"],
+        "all": ["nequip", "chgnet"],
     },
     classifiers=[
         "Programming Language :: Python :: 3",

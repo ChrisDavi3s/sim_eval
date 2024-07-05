@@ -3,5 +3,7 @@ matplotlib
 ase
 tqdm
 scipy
+
 # Optional dependencies
-nequip
+nequip; extra == 'nequip'
+chgnet; extra == 'chgnet'

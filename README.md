@@ -28,11 +28,14 @@ You have some structures (called frames in code) and have some associated calcul
   ```python
    VASPXMLPropertyCalculator()
   ```
-- CHGnet
+- CHGnet (UNTESTED)
   ```python
    CHGNetPropertyCalculator()
   ```
-- MACE (coming soon)
+- MACE (UNTESTED)
+  ```python
+   MACEPropertyCalculator()
+  ```
 - (Anything with an ASE calculator) see https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
 
 ## Installation

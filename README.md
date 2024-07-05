@@ -21,7 +21,13 @@ You have some structures (called frames in code) and have some associated calcul
 
 ## Currently Implemented Comparisons
 - Nequip / Allegro
-- VASP
+  ```python
+   NequIPPropertyCalculator(PropertyCalculator)
+  ```
+- VASP (a folder of sorted xml outputs)
+  ```python
+   VASPXMLPropertyCalculator(PropertyCalculator)
+  ```
 - (Anything with an ASE simulator)
 
 ## Installation

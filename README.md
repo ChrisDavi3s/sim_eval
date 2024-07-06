@@ -1,8 +1,8 @@
 # sim_eval
 
-sim_eval (better name suggestions appreciated) is a Python library for analyzing and comparing the results of different molecular dynamics simulations. 
+sim_eval (better name suggestions appreciated) is a Python library for analyzing, quantifying, and comparing calculation errors.
 
-It's particularly useful for benchmarking machine learning potentials (like those from NequIP/Allegro) against reference calculations (such as VASP DFT).
+It excels in benchmarking machine learning potentials (like those from NequIP/Allegro) against reference calculations (such as VASP DFT).
 
 ## Use Case
 

@@ -25,21 +25,29 @@ If you:
 
 ## Currently Implemented Comparisons
 - Nequip / Allegro
-  ```python
-   NequIPPropertyCalculator()
-  ```
-- VASP (a folder of sorted xml outputs)
-  ```python
-   VASPXMLPropertyCalculator()
-  ```
+  \```python
+  NequIPPropertyCalculator()
+  \```
+- VASP (single OUTCAR file)
+  \```python
+  VASPOUTCARPropertyCalculator()
+  \```
+- VASP (multiple OUTCAR files in a directory)
+  \```python
+  VASPOUTCARDirectoryPropertyCalculator()
+  \```
+- VASP (a folder of sorted XML outputs)
+  \```python
+  VASPXMLDDirectoryPropertyCalculator()
+  \```
 - CHGnet
-  ```python
-   CHGNetPropertyCalculator()
-  ```
+  \```python
+  CHGNetPropertyCalculator()
+  \```
 - MACE (UNTESTED)
-  ```python
-   MACEPropertyCalculator()
-  ```
+  \```python
+  MACEPropertyCalculator()
+  \```
 - (Anything with an ASE calculator) see https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
 
 ## Installation

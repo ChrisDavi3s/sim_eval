@@ -3,7 +3,9 @@ import sys
 
 # Always import these
 from .base_calculator import PropertyCalculator
-from .vasp_xml_calculator import VASPXMLPropertyCalculator
+from .vasp_xml_dir_calculator import VASPXMLDiretoryPropertyCalculator
+from .vasp_outcar_calculator import VASPOUTCARPropertyCalculator
+from .vasp_outcar_dir_calculator import VASPOUTCARDirectoryPropertyCalculator
 
 def warn_with_print(message, category, filename, lineno, file=None, line=None):
     print(f'\033[93mWarning: {message}\033[0m', file=sys.stderr)
@@ -30,7 +32,7 @@ except ImportError:
     MACEPropertyCalculator = None
 
 # Define __all__
-__all__ = ['PropertyCalculator', 'VASPXMLPropertyCalculator']
+__all__ = ['PropertyCalculator', 'VASPXMLDiretoryPropertyCalculator', 'VASPOUTCARPropertyCalculator', 'VASPOUTCARDirectoryPropertyCalculator']
 
 # Add optional calculators to __all__ if they are available
 if NequIPPropertyCalculator is not None:

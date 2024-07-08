@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from typing import Union, List
 from ase.io import read
@@ -43,7 +44,7 @@ class VASPOUTCARPropertyCalculator(PropertyCalculator):
         self.outcar_path: str = outcar_path
         self.index: Union[int, str, slice] = index
 
-    def compute_properties(self, frames: 'Frames') -> None:
+    def compute_properties(self, frames: 'Frames') -> None: # noqa F821
         """
         Compute properties for the given frames using the VASP OUTCAR file.
 

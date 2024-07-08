@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import re
 from typing import Union, List
@@ -35,7 +36,7 @@ class VASPOUTCARDirectoryPropertyCalculator(PropertyCalculator):
         self.base_name: str = base_name
         self.index: Union[int, str, slice] = index
 
-    def compute_properties(self, frames: 'Frames') -> None:
+    def compute_properties(self, frames: 'Frames') -> None: # noqa F821
         if not os.path.exists(self.directory):
             raise FileNotFoundError(f"Directory not found: {self.directory}")
 

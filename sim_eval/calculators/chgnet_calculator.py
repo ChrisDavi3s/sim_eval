@@ -19,7 +19,7 @@ class CHGNetPropertyCalculator(PropertyCalculator):
         
         # If model_path is provided, load a specific model. Otherwise, use the default model.
         if self.model_path:
-            calc = CHGNetCalculator(model_path=self.model_path)
+            calc = CHGNetCalculator.from_file(model_path=self.model_path)
         else:
             calc = CHGNetCalculator()
 

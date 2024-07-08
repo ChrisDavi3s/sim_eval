@@ -160,6 +160,19 @@ class Frames(
 ) -> None
 ```
 
+### Force box plots (ovverwrites plot_box)
+```python
+(method) def plot_box(
+    frames: Frames,
+    reference_calculator: PropertyCalculator,
+    target_calculators: PropertyCalculator | List[PropertyCalculator],
+    frame_number: int | slice = slice(None),
+    per_atom: bool = False,
+    group_spacing: float = 1,         # Spacing between groups of boxes (ie different calculators)
+    box_spacing: float = 0.25,        # Spacing between boxes in a group (ie atom type)
+    atom_types: List[str] | None = None # List of atom types to plot
+) -> None
+```
 ### Metrics
 
 ```python

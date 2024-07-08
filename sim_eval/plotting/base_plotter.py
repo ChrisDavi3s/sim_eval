@@ -163,7 +163,7 @@ class BasePlotter:
 
         if not isinstance(target_calculators, list):
             target_calculators = [target_calculators]
-        fig_width = 3 + (len(target_calculators) * 2)
+        fig_width = 3 + (len(target_calculators))
         fig, ax = plt.subplots(figsize=(fig_width, 6))
         
         data = []

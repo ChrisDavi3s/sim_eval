@@ -1,5 +1,5 @@
 from .base_plotter import BasePlotter
-from typing import Union, List
+from typing import Union, List, Optional
 import matplotlib.pyplot as plt
 from ..property import Property
 import numpy as np
@@ -69,69 +69,71 @@ class ForcesPlotter(BasePlotter):
     def plot_box(cls, frames: Frames, reference_calculator: PropertyCalculator,
                  target_calculators: Union[PropertyCalculator, List[PropertyCalculator]],
                  frame_number: Union[int, slice] = slice(None),
-                 per_atom: bool = False):
+                 per_atom: bool = False,
+                 group_spacing: float = 1.0,
+                 box_spacing: float = 0.25,
+                 atom_types: Optional[List[str]] = None):
         """
-        Create and display a box plot of force errors.
+        Create and display a box plot of force errors with adjustable spacing and atom type selection.
 
         Args:
             frames (Frames): The Frames object containing the data.
             reference_calculator (PropertyCalculator): The reference calculator.
             target_calculators (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
             frame_number (Union[int, slice], optional): The frame number(s) to plot. Defaults to all frames.
-            per_atom (bool, optional): Whether to calculate errors per atom. Defaults to False. For this implementation,
-            we list atoms per atom type.
+            per_atom (bool, optional): Whether to calculate errors per atom type. Defaults to False.
+            group_spacing (float, optional): Spacing between groups (atom types or calculators). Defaults to 1.0.
+            box_spacing (float, optional): Spacing between boxes within a group. Defaults to 0.25.
+            atom_types (Optional[List[str]], optional): List of atom types to plot. If None, all atom types are plotted. Only used when per_atom is True.
         """
-
         if not isinstance(target_calculators, list):
             target_calculators = [target_calculators]
-
+        
         data = []
         labels = []
-        atom_types = frames.get_atom_types_and_indices()
+        positions = []
+        all_atom_types = frames.get_atom_types_and_indices()
         
-        if per_atom:
-            fig_width = 3 + (len(target_calculators) * len(atom_types) * 2)
+        if per_atom and atom_types:
+            atom_types_dict = {at: all_atom_types[at] for at in atom_types if at in all_atom_types}
         else:
-            fig_width = 3 + (len(target_calculators) * 2)
-        
+            atom_types_dict = all_atom_types
+
+        fig_width = 3 + (len(atom_types_dict) * len(target_calculators) * (1 + box_spacing) + (len(atom_types_dict) - 1) * group_spacing) if per_atom else 3 + (len(target_calculators) * (1 + group_spacing))
         fig, ax = plt.subplots(figsize=(fig_width, 6))
-
+        
         reference_forces = frames.get_property_magnitude(cls.PROPERTY, reference_calculator, frame_number)
-
+        
         if per_atom:
-            for atom_type, indices in atom_types.items():
-                for target_calc in target_calculators:
+            for i, (atom_type, indices) in enumerate(atom_types_dict.items()):
+                for j, target_calc in enumerate(target_calculators):
                     target_forces = frames.get_property_magnitude(cls.PROPERTY, target_calc, frame_number)
                     error = np.abs(reference_forces[..., indices] - target_forces[..., indices])
                     if error.ndim == 2:
                         error = error.flatten()
                     data.append(error)
-                    labels.append(f"{atom_type} ({target_calc.name})")
+                    labels.append(f"{atom_type}\n({target_calc.name})")
+                    positions.append(i * (len(target_calculators) * (1 + box_spacing) + group_spacing) + j * (1 + box_spacing))
         else:
-            for target_calc in target_calculators:
+            for i, target_calc in enumerate(target_calculators):
                 target_forces = frames.get_property_magnitude(cls.PROPERTY, target_calc, frame_number)
                 error = np.abs(reference_forces - target_forces)
                 if error.ndim == 2:
                     error = error.flatten()
                 data.append(error)
                 labels.append(target_calc.name)
+                positions.append(i * (1 + group_spacing))
 
-        ax.boxplot(data, labels=labels)
+        ax.boxplot(data, positions=positions, labels=labels, widths=0.8)
         
-        # Add this line after your boxplot call
         ax.yaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.5)
-
-        # Also, ensure the grid is behind the plot elements
         ax.set_axisbelow(True)
-
-        if per_atom:
-            title = 'Forces Error Distribution (per atom type)'
-        else:
-            title = 'Total Forces Error Distribution'
         
+        title = 'Forces Error Distribution (per atom type)' if per_atom else 'Total Forces Error Distribution'
         ax.set_title(title)
         ax.set_ylabel(f'Force Error ({cls.PROPERTY.get_units()})')
-
+        
         plt.xticks(rotation=45, ha='right')
         plt.tight_layout()
         plt.show()
+

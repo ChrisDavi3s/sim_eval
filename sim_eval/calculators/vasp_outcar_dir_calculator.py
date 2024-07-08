@@ -7,6 +7,7 @@ from ase.io import read
 from ase.atoms import Atoms
 from .base_calculator import PropertyCalculator
 
+# This name is HORRIBLE and should be changed ... please ... please change it
 class VASPOUTCARDirectoryPropertyCalculator(PropertyCalculator):
     """
     Implementation of PropertyCalculator for VASP calculations (multiple OUTCAR files in a directory).
@@ -50,40 +51,57 @@ class VASPOUTCARDirectoryPropertyCalculator(PropertyCalculator):
         def get_frame_number(filename: str) -> int:
             match = pattern.match(filename)
             return int(match.group(1)) if match else -1
+        
+        sorted_outcar_files = sorted(outcar_files, key=get_frame_number)
 
-        sorted_outcar_files: List[str] = sorted(outcar_files, key=get_frame_number)
-        processed_files = 0
+        # Apply the index to select directories
+        if isinstance(self.index, int):
+            sorted_outcar_files = [sorted_outcar_files[self.index]]
+        elif isinstance(self.index, slice):
+            sorted_outcar_files = sorted_outcar_files[self.index]
+        # If it's a string ':' we keep all directories
+        
+        # Handle frame count mismatches
+        if len(sorted_outcar_files) == 1:
+            print("Warning: Only one frame found in OUTCAR. Repeating for all input frames.")
+            sorted_outcar_files = [sorted_outcar_files[0]] * len(frames)
+        elif len(sorted_outcar_files) < len(frames):
+            raise ValueError(f"Not enough frames in OUTCAR ({len(sorted_outcar_files)}) to match input frames ({len(frames)})")
+        elif len(sorted_outcar_files) > len(frames):
+            print(f"Warning: More frames in OUTCAR ({len(sorted_outcar_files)}) than input frames ({len(frames)}). Using only the first {len(frames)} OUTCAR frames.")
+            sorted_outcar_files = sorted_outcar_files[:len(frames)]
 
-        for filename in tqdm(sorted_outcar_files, desc=f"Computing {self.name} properties"):
-            outcar_path: str = os.path.join(self.directory, filename)
-            frame_number = get_frame_number(filename)
+        for i, (filename, frame) in enumerate(tqdm(zip(sorted_outcar_files, frames.frames), total=len(frames), desc=f"Computing {self.name} properties")):
             
-            if frame_number >= len(frames):
-                print(f"Warning: Frame number {frame_number} from {filename} exceeds the number of input frames. Skipping.")
-                continue
+            outcar_path: str = os.path.join(self.directory, filename)
 
             try:
-                outcar_frame: Atoms = read(outcar_path, index=self.index)
+                outcar_frame: Union[Atoms, List[Atoms]] = read(outcar_path, format='vasp-out')
             except Exception as e:
-                print(f"Error reading {self.base_name} file {filename}: {str(e)}. Skipping.")
+                print(f"Error reading {outcar_path} OUTCAR file : {str(e)}. Skipping.")
+                continue
+
+            # if we get a list of Atoms, we proceed with the first structure
+            if isinstance(outcar_frame, List):
+                print(f"Error reading {outcar_path} OUTCAR file : Got a list of Atoms. Proceeding with the first structure from the OUTCAR")
+                outcar_frame = outcar_frame[0]
                 continue
 
             if self.has_energy:
                 energy_key = f'{self.name}_total_energy'
-                if energy_key in frames.frames[frame_number].info:
-                    raise ValueError(f"{energy_key} already exists in frame {frame_number}")
-                frames.frames[frame_number].info[energy_key] = outcar_frame.get_potential_energy()
+                if energy_key in frame.info:
+                    raise ValueError(f"{energy_key} already exists in frame {i}")
+                frame.info[energy_key] = outcar_frame.get_potential_energy()
 
             if self.has_forces:
                 forces_key = f'{self.name}_forces'
-                if forces_key in frames.frames[frame_number].arrays:
-                    raise ValueError(f"{forces_key} already exists in frame {frame_number}")
-                frames.frames[frame_number].arrays[forces_key] = outcar_frame.get_forces()
+                if forces_key in frame.arrays:
+                    raise ValueError(f"{forces_key} already exists in frame {i}")
+                frame.arrays[forces_key] = outcar_frame.get_forces()
 
             if self.has_stress:
                 stress_key = f'{self.name}_stress'
-                if stress_key in frames.frames[frame_number].info:
-                    raise ValueError(f"{stress_key} already exists in frame {frame_number}")
-                frames.frames[frame_number].info[stress_key] = outcar_frame.get_stress()
+                if stress_key in frame.info:
+                    raise ValueError(f"{stress_key} already exists in frame {i}")
+                frame.info[stress_key] = outcar_frame.get_stress()
 
-            processed_files += 1

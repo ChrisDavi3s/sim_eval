@@ -49,43 +49,61 @@ class VASPXMLDiretoryPropertyCalculator(PropertyCalculator):
     def compute_properties(self, frames: 'Frames') -> None:  # noqa F821
         pattern = re.compile(f"{self.base_name}_(\\d+)\\.xml")
         vasp_files = [f for f in os.listdir(self.directory) if pattern.match(f)]        
-        print(f"Found {len(vasp_files)} VASP XML files in {self.directory}")
         
         def get_frame_number(filename):
             match = pattern.match(filename)
             return int(match.group(1)) if match else -1
         
         sorted_vasp_files = sorted(vasp_files, key=get_frame_number)
-        print(f"Found {len(sorted_vasp_files)} VASP directories in {self.directory}")
+
         # Apply the index to select directories
         if isinstance(self.index, int):
             sorted_vasp_files = [sorted_vasp_files[self.index]]
         elif isinstance(self.index, slice):
             sorted_vasp_files = sorted_vasp_files[self.index]
         # If it's a string ':' we keep all directories
-        for i, filename in enumerate(tqdm(sorted_vasp_files, desc=f"Computing {self.name} properties", total=len(sorted_vasp_files))):
+
+        if len(sorted_vasp_files) == 1:
+            print("Warning: Only one frame found in OUTCAR. Repeating for all input frames.")
+            sorted_vasp_files = [sorted_vasp_files[0]] * len(frames)
+        elif len(sorted_vasp_files) < len(frames):
+            raise ValueError(f"Not enough frames in OUTCAR ({len(sorted_vasp_files)}) to match input frames ({len(frames)})")
+        elif len(sorted_vasp_files) > len(frames):
+            print(f"Warning: More frames in OUTCAR ({len(sorted_vasp_files)}) than input frames ({len(frames)}). Using only the first {len(frames)} OUTCAR frames.")
+            sorted_vasp_files = sorted_vasp_files[:len(frames)]
+
+
+        for i, (filename, frame) in enumerate(tqdm(zip(sorted_vasp_files, frames.frames), total=len(frames), desc=f"Computing {self.name} properties")):
+            
             file = os.path.join(self.directory, filename)
 
             try:
-                vasp_atom: Atoms = read(file)
+                vasp_atoms:  Union[Atoms, List[Atoms]] = read(file)
             except Exception as e:
                 print(f"Error reading XML file {filename}: {str(e)}. Skipping.")
                 continue
+            
+            # if we get a list of Atoms, we proceed with the first structure
+            if isinstance(vasp_atoms, List):
+                print(f"Error reading {filename} XML file : Got a list of Atoms. Proceeding with the first structure from the filename")
+                filename = filename[0]
+                continue
+
 
             if self.has_energy:
                 energy_key = f'{self.name}_total_energy'
-                if energy_key in frames.frames[i].info:
+                if energy_key in frame.info:
                     raise ValueError(f"{energy_key} already exists in frame {i}")
-                frames.frames[i].info[energy_key] = vasp_atom.get_potential_energy()
+                frame.info[energy_key] = vasp_atoms.get_potential_energy()
 
             if self.has_forces:
                 forces_key = f'{self.name}_forces'
-                if forces_key in frames.frames[i].arrays:
+                if forces_key in frame.arrays:
                     raise ValueError(f"{forces_key} already exists in frame {i}")
-                frames.frames[i].arrays[forces_key] = vasp_atom.get_forces()
+                frame.arrays[forces_key] = vasp_atoms.get_forces()
 
             if self.has_stress:
                 stress_key = f'{self.name}_stress'
-                if stress_key in frames.frames[i].info:
+                if stress_key in frame.info:
                     raise ValueError(f"{stress_key} already exists in frame {i}")
-                frames.frames[i].info[stress_key] = vasp_atom.get_stress()
+                frame.info[stress_key] = vasp_atoms.get_stress()

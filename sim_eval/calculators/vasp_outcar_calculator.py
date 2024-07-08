@@ -85,6 +85,7 @@ class VASPOUTCARPropertyCalculator(PropertyCalculator):
 
         # Handle frame count mismatches
         if len(outcar_frames) == 1:
+            print("Warning: Only one frame found in OUTCAR. Repeating for all input frames.")
             outcar_frames = [outcar_frames[0]] * len(frames)
         elif len(outcar_frames) < len(frames):
             raise ValueError(f"Not enough frames in OUTCAR ({len(outcar_frames)}) to match input frames ({len(frames)})")
@@ -93,7 +94,7 @@ class VASPOUTCARPropertyCalculator(PropertyCalculator):
             outcar_frames = outcar_frames[:len(frames)]
 
         # Compute properties for each frame
-        for i, (outcar_frame, frame) in enumerate(tqdm(zip(outcar_frames, frames), total=len(frames), desc=f"Computing {self.name} properties")):
+        for i, (outcar_frame, frame) in enumerate(tqdm(zip(outcar_frames, frames.frames), total=len(outcar_frames), desc=f"Computing {self.name} properties")):
             if self.has_energy:
                 energy_key = f'{self.name}_total_energy'
                 if energy_key in frame.info:

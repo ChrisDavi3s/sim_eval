@@ -32,7 +32,7 @@ If you:
   ```python
    VASPXMLPropertyCalculator()
   ```
-- CHGnet (UNTESTED)
+- CHGnet
   ```python
    CHGNetPropertyCalculator()
   ```

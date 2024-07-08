@@ -1,5 +1,8 @@
 from tqdm import tqdm
-from nequip.ase import NequIPCalculator
+try:
+    from nequip.ase import NequIPCalculator
+except ImportError:
+    NequIPCalculator = None
 from .base_calculator import PropertyCalculator
 
 class NequIPPropertyCalculator(PropertyCalculator):

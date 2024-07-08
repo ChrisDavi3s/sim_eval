@@ -1,7 +1,10 @@
 from tqdm import tqdm
-from chgnet.model import CHGNetCalculator
-from ..frames import Frames
+try:
+    from chgnet.model import CHGNetCalculator
+except ImportError:
+    CHGNetCalculator = None
 from .base_calculator import PropertyCalculator
+
 
 class CHGNetPropertyCalculator(PropertyCalculator):
     """
@@ -12,14 +15,12 @@ class CHGNetPropertyCalculator(PropertyCalculator):
             raise ImportError("CHGNet is not installed. Please install it using 'pip install chgnet'.")
         super().__init__(name, has_energy, has_forces, has_stress)
         self.model_path = model_path
+        print(f"Initialized CHGNetPropertyCalculator with model_path={model_path}")
 
-    def compute_properties(self, frames: Frames):
-        if CHGNetCalculator is None:
-            raise ImportError("CHGNet is not installed. Please install it using 'pip install chgnet'.")
-        
+    def compute_properties(self, frames, device=None):
         # If model_path is provided, load a specific model. Otherwise, use the default model.
         if self.model_path:
-            calc = CHGNetCalculator.from_file(model_path=self.model_path)
+            calc = CHGNetCalculator.from_file(path=self.model_path, device=device)
         else:
             calc = CHGNetCalculator()
 

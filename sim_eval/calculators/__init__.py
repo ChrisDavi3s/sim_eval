@@ -1,38 +1,41 @@
 import warnings
 import sys
-from importlib import import_module
 
 # Always import these
 from .base_calculator import PropertyCalculator
 from .vasp_xml_calculator import VASPXMLPropertyCalculator
 
-
 def warn_with_print(message, category, filename, lineno, file=None, line=None):
     print(f'\033[93mWarning: {message}\033[0m', file=sys.stderr)
 
-
 warnings.showwarning = warn_with_print
 
-
-# Define a function to handle optional imports
-def import_optional(module_name, class_name, install_command):
-    try:
-        module = import_module(f'.{module_name}_calculator', package=__package__)
-        return getattr(module, f'{class_name}PropertyCalculator')
-    except ImportError:
-        message = f"{class_name} is not installed. {class_name}PropertyCalculator will not be available. To use it, install {class_name} using '{install_command}'"
-        warnings.warn(message, ImportWarning)
-        return None
-
-
 # Import optional calculators
-NequIPPropertyCalculator = import_optional('nequip', 'NequIP', 'pip install nequip')
-CHGNetPropertyCalculator = import_optional('chgnet', 'CHGNet', 'pip install chgnet')
-MACEPropertyCalculator = import_optional('mace', 'MACE', 'pip install mace-torch')
+try:
+    from .nequip_calculator import NequIPPropertyCalculator
+except ImportError:
+    warnings.warn("NequIP is not installed. NequIPPropertyCalculator will not be available. To use it, install NequIP using 'pip install nequip'", ImportWarning)
+    NequIPPropertyCalculator = None
 
+try:
+    from .chgnet_calculator import CHGNetPropertyCalculator
+except ImportError:
+    warnings.warn("CHGNet is not installed. CHGNetPropertyCalculator will not be available. To use it, install CHGNet using 'pip install chgnet'", ImportWarning)
+    CHGNetPropertyCalculator = None
 
-__all__ = ['PropertyCalculator',
-           'VASPXMLPropertyCalculator',
-           'NequIPPropertyCalculator',
-           'CHGNetPropertyCalculator',
-           'MACEPropertyCalculator']
+try:
+    from .mace_calculator import MACEPropertyCalculator
+except ImportError:
+    warnings.warn("MACE is not installed. MACEPropertyCalculator will not be available. To use it, install MACE using 'pip install mace-torch'", ImportWarning)
+    MACEPropertyCalculator = None
+
+# Define __all__
+__all__ = ['PropertyCalculator', 'VASPXMLPropertyCalculator']
+
+# Add optional calculators to __all__ if they are available
+if NequIPPropertyCalculator is not None:
+    __all__.append('NequIPPropertyCalculator')
+if CHGNetPropertyCalculator is not None:
+    __all__.append('CHGNetPropertyCalculator')
+if MACEPropertyCalculator is not None:
+    __all__.append('MACEPropertyCalculator')

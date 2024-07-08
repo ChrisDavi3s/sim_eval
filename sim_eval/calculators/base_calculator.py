@@ -31,7 +31,7 @@ class PropertyCalculator:
         self.has_forces = has_forces
         self.has_stress = has_stress
 
-    def compute_properties(self, frames):
+    def compute_properties(self, frames: Frames):
         """"
         Compute properties for the given frames.
 

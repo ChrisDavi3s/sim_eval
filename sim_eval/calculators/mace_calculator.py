@@ -1,6 +1,8 @@
 from tqdm import tqdm
-from mace.calculators import MACECalculator
-from ..frames import Frames
+try:
+    from mace.calculators import MACECalculator
+except ImportError:
+    MACECalculator = None
 from .base_calculator import PropertyCalculator
 
 class MACEPropertyCalculator(PropertyCalculator):
@@ -15,7 +17,7 @@ class MACEPropertyCalculator(PropertyCalculator):
         if not self.model_path:
             raise ValueError("A model path must be provided for MACEPropertyCalculator.")
 
-    def compute_properties(self, frames: Frames):
+    def compute_properties(self, frames):
         if MACECalculator is None:
             raise ImportError("MACE is not installed. Please install it using 'pip install mace-torch'.")
         

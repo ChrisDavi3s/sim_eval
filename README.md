@@ -108,9 +108,8 @@ Energy Metrics (vs DFT (PBE)):
 ![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/ec69853b-e819-46e2-85a5-22fbc29c9f77)
 
 
-### ForcesPlotter.plot_box(frames, vasp_calc, nequip_calc, per_atom=True)
-
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/549bad78-18cc-4b4b-a251-6b386f84ec11)
+### ForcesPlotter.plot_box(frames, vasp_calc, [nequip_calc, second_nequip_calc], per_atom=True, group_spacing=1, box_spacing=0.2 , atom_types=['Li', 'P', 'S'])
+![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/1c3d5d48-3de7-491a-9ed5-52ae19d0dd63)
 
 ### StressPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
 

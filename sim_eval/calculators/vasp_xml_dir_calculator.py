@@ -36,63 +36,56 @@ class VASPXMLDiretoryPropertyCalculator(PropertyCalculator):
         - Files that don't match the expected naming pattern will be skipped with a warning.
     """
 
-    def __init__(self, name: str, directory: str, base_name: str, index: Union[int, slice, str] = ':',
+    def __init__(self, name:
+                  str, directory: str,
+                  base_name: str, 
+                  index: Union[int, slice, str] = ':',
                  has_energy: bool = True, has_forces: bool = True, has_stress: bool = True):
         super().__init__(name, has_energy, has_forces, has_stress)
         self.directory: str = directory
         self.base_name: str = base_name
         self.index: Union[int, slice, str] = index
 
-    def compute_properties(self, frames: 'Frames') -> None:
-        pattern = re.compile(f"{self.base_name}_(\\d+)")
-        vasp_dirs: List[str] = [d for d in os.listdir(self.directory) if pattern.match(d) and os.path.isdir(os.path.join(self.directory, d))]
-
-        def get_dir_number(dirname: str) -> int:
-            match = pattern.match(dirname)
-            return int(match.group(1)) if match else -1
-
-        sorted_vasp_dirs: List[str] = sorted(vasp_dirs, key=get_dir_number)
+    def compute_properties(self, frames: 'Frames') -> None:  # noqa F821
+        pattern = re.compile(f"{self.base_name}_(\\d+)\\.xml")
+        vasp_files = [f for f in os.listdir(self.directory) if pattern.match(f)]        
+        print(f"Found {len(vasp_files)} VASP XML files in {self.directory}")
         
+        def get_frame_number(filename):
+            match = pattern.match(filename)
+            return int(match.group(1)) if match else -1
+        
+        sorted_vasp_files = sorted(vasp_files, key=get_frame_number)
+        print(f"Found {len(sorted_vasp_files)} VASP directories in {self.directory}")
         # Apply the index to select directories
         if isinstance(self.index, int):
-            sorted_vasp_dirs = [sorted_vasp_dirs[self.index]]
+            sorted_vasp_files = [sorted_vasp_files[self.index]]
         elif isinstance(self.index, slice):
-            sorted_vasp_dirs = sorted_vasp_dirs[self.index]
+            sorted_vasp_files = sorted_vasp_files[self.index]
         # If it's a string ':' we keep all directories
-
-        for dirname in tqdm(sorted_vasp_dirs, desc=f"Computing {self.name} properties"):
-            dir_number = get_dir_number(dirname)
-            
-            if dir_number >= len(frames):
-                print(f"Warning: Directory number {dir_number} from {dirname} exceeds the number of input frames. Skipping.")
-                continue
-
-            xml_file = os.path.join(self.directory, dirname, 'vasprun.xml')
-            
-            if not os.path.exists(xml_file):
-                print(f"Warning: vasprun.xml not found in directory {dirname}. Skipping.")
-                continue
+        for i, filename in enumerate(tqdm(sorted_vasp_files, desc=f"Computing {self.name} properties", total=len(sorted_vasp_files))):
+            file = os.path.join(self.directory, filename)
 
             try:
-                vasp_atom: Atoms = read(xml_file)
+                vasp_atom: Atoms = read(file)
             except Exception as e:
-                print(f"Error reading XML file in directory {dirname}: {str(e)}. Skipping.")
+                print(f"Error reading XML file {filename}: {str(e)}. Skipping.")
                 continue
 
             if self.has_energy:
                 energy_key = f'{self.name}_total_energy'
-                if energy_key in frames.frames[dir_number].info:
-                    raise ValueError(f"{energy_key} already exists in frame {dir_number}")
-                frames.frames[dir_number].info[energy_key] = vasp_atom.get_potential_energy()
+                if energy_key in frames.frames[i].info:
+                    raise ValueError(f"{energy_key} already exists in frame {i}")
+                frames.frames[i].info[energy_key] = vasp_atom.get_potential_energy()
 
             if self.has_forces:
                 forces_key = f'{self.name}_forces'
-                if forces_key in frames.frames[dir_number].arrays:
-                    raise ValueError(f"{forces_key} already exists in frame {dir_number}")
-                frames.frames[dir_number].arrays[forces_key] = vasp_atom.get_forces()
+                if forces_key in frames.frames[i].arrays:
+                    raise ValueError(f"{forces_key} already exists in frame {i}")
+                frames.frames[i].arrays[forces_key] = vasp_atom.get_forces()
 
             if self.has_stress:
                 stress_key = f'{self.name}_stress'
-                if stress_key in frames.frames[dir_number].info:
-                    raise ValueError(f"{stress_key} already exists in frame {dir_number}")
-                frames.frames[dir_number].info[stress_key] = vasp_atom.get_stress()
+                if stress_key in frames.frames[i].info:
+                    raise ValueError(f"{stress_key} already exists in frame {i}")
+                frames.frames[i].info[stress_key] = vasp_atom.get_stress()

@@ -1,4 +1,4 @@
-# simulation_benchmarks/calculators/base_calculator.py
+from __future__ import annotations
 
 class PropertyCalculator:
     '''
@@ -33,6 +33,7 @@ class PropertyCalculator:
 
 
     def compute_properties(self, frames):
+
         """"
         Compute properties for the given frames.
 

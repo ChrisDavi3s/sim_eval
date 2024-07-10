@@ -49,13 +49,10 @@ class ForcesPlotter(BasePlotter):
             mae = frames.get_mae(cls.PROPERTY, reference_calculator, target_calc, frame_number)
             rmse = frames.get_rmse(cls.PROPERTY, reference_calculator, target_calc, frame_number)
             correlation = frames.get_correlation(cls.PROPERTY, reference_calculator, target_calc, frame_number)
-            number_of_atoms = frames.get_number_of_atoms()
             
             print(f"\n  {target_calc.name}:")
-            print("    Total:")
+            print("    Total (per atom):")
             print(cls.format_metrics(mae, rmse, correlation, "      "))
-            print(f'      MAE (average per atom): {np.mean(mae) / number_of_atoms:.6f} {cls.PROPERTY.get_units()}')
-            print(f'      RMSE (average per atom): {np.mean(rmse) / number_of_atoms:.6f} {cls.PROPERTY.get_units()}')
             
             print('\n    Per Atom Type:')
             atoms_dict = frames.get_atom_types_and_indices()

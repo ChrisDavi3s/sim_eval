@@ -7,7 +7,7 @@ It excels in benchmarking machine learning potentials (like those from NequIP/Al
 ## Use Case
 
 If you:
-  - (a) some structures (called frames in code) and,
+  - (a) have some structures (called frames in code) and,
   - (b) have some associated calculations / a trained model that can calculate properties for those atoms
     
 ... look no further!

@@ -1,6 +1,7 @@
 from typing import Union, List
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 from ..calculators import PropertyCalculator
 from ..frames import Frames
 from ..property import Property
@@ -253,7 +254,7 @@ class BasePlotter:
             legend_location (str, optional): Location of the legend. If None, no legend is shown.
         """
         if cls.PROPERTY is None:
-            raise NotImplementedError("Subclasses must define PROPERTY")
+            raise NotImplementedError("Subclasses must define PROPERTY. This probably happens when youre calling the base class directly")
 
         if not isinstance(calculators, list):
             calculators = [calculators]
@@ -317,4 +318,89 @@ class BasePlotter:
             ax.legend(handles=legend_elements, title="Calculators", loc=legend_location)
 
         plt.tight_layout()
+        plt.show()
+
+    @classmethod
+    def plot_all_distributions(cls, frames: Frames,
+                            calculators: Union[PropertyCalculator, List[PropertyCalculator]],
+                            frame_number: Union[int, slice] = slice(None),
+                            per_atom: bool = False,
+                            legend_location: str = 'best'):
+        """
+        Create and display box plots for energy, forces, and stress distributions for multiple calculators.
+
+        Args:
+        frames (Frames): The Frames object containing the data.
+        calculators (Union[PropertyCalculator, List[PropertyCalculator]]): The calculator(s) to plot.
+        frame_number (Union[int, slice], optional): The frame number(s) to plot. Defaults to all frames.
+        per_atom (bool, optional): Whether to calculate distribution per atom. Defaults to False.
+        legend_location (str, optional): Location of the legend. Defaults to 'best'.
+        """
+        # Avoid circular import
+        from ..plotting import EnergyPlotter, ForcesPlotter, StressPlotter
+
+        if not isinstance(calculators, list):
+            calculators = [calculators]
+
+        properties = [Property.ENERGY, Property.FORCES, Property.STRESS]
+        plotters = [EnergyPlotter, ForcesPlotter, StressPlotter]
+
+        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+
+        for ax, property, plotter in zip(axes, properties, plotters):
+            data = []
+            labels = []
+            for calc in calculators:
+                property_data = frames.get_property_magnitude(property, calc, frame_number)
+                if property == Property.FORCES:
+                    if not per_atom:
+                        property_data = np.mean(property_data, axis=1)
+                    else:
+                        property_data = property_data.flatten()
+                elif per_atom and (property == Property.ENERGY or property == Property.STRESS):
+                    num_atoms = frames.get_number_of_atoms()
+                    property_data = property_data / num_atoms
+                data.append(property_data)
+                labels.append(calc.name)
+
+            bp = ax.boxplot(data, labels=labels, patch_artist=True)
+            
+            # Color boxes
+            colors = ['white'] + list(plt.cm.Pastel1(np.linspace(0, 1, len(calculators)-1)))
+            for patch, color in zip(bp['boxes'], colors):
+                patch.set_facecolor(color)
+                patch.set_edgecolor('black')
+            
+            ax.yaxis.grid(True, linestyle='--', which='major', color='grey', alpha=0.5)
+            ax.set_axisbelow(True)
+            
+            if property == Property.FORCES:
+                title = "Force Magnitude Distribution"
+                y_label = f"Force Magnitude ({property.get_units()})"
+                y_label += "\nper atom" if per_atom else "\nmean over each atom"
+            elif property == Property.ENERGY:
+                title = "Energy Distribution"
+                y_label = f"Energy ({property.get_units()})"
+                y_label += " per atom" if per_atom else " per structure"
+            else:  # STRESS
+                title = "Stress Magnitude Distribution"
+                y_label = f"Stress Magnitude ({property.get_units()})"
+                y_label += " per atom" if per_atom else " per structure"
+            
+            ax.set_title(title)
+            ax.set_ylabel(y_label)
+            ax.set_xlabel('Calculators')
+            plt.sca(ax)
+            plt.xticks(rotation=45, ha='right')
+            
+            if legend_location:
+                legend_elements = [Patch(facecolor=color, edgecolor='black', label=calc.name)
+                                for color, calc in zip(colors, calculators)]
+                ax.legend(handles=legend_elements, title="Calculators", loc=legend_location)
+
+        # Set overall title
+        fig.suptitle("Distribution Plots for Energy, Forces, and Stress", fontsize=16)
+
+        # Adjust layout and display
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         plt.show()

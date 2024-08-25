@@ -23,6 +23,20 @@ If you:
 
 **Most plotters will accept MULTIPLE target systems allowing comparison of methods against each other on the SAME plot.**
 
+## How it works:
+
+We attach the calculators to reference frames and then use the plotters to generate plots and metrics.
+
+Plotters are seperated into three categories and we have a base plotter that, as well as containing a lot of the code for the Energy, Stress, and Forces subclasses, can generate all plots at once.
+
+BasePlotter:
+- plot_all_scatter : Generates scatter plots for energy, forces, and stress
+- plot_all_distributions : Plots raw box plots for energy, forces, and stress (without comparison to reference)
+
+EnergyPlotter:
+- plot_scatter : Generates scatter plots for energy
+
+
 ## Currently Implemented Comparisons
 - Nequip / Allegro
   ```python

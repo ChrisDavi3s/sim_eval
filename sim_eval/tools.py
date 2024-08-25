@@ -1,5 +1,6 @@
 from typing import List, Union
 import numpy as np
+from .property import Property, MetricType, PropertyMetric
 
 def normalize_frame_selection(total_frames: int, frame_number: Union[int, List[int], slice, None] = None) -> List[int]:
   """
@@ -51,3 +52,29 @@ def calculate_von_mises_stress(stress_tensor):
     xx, yy, zz, yz, xz, xy = stress_tensor.T
     von_mises = np.sqrt(0.5 * ((xx - yy)**2 + (yy - zz)**2 + (zz - xx)**2 + 6*(yz**2 + xz**2 + xy**2)))
     return  np.array(von_mises).reshape(-1)
+
+def create_property_metric(property_name: str, per_atom: bool) -> PropertyMetric:
+    """
+    Creates a PropertyMetric instance from a property name and a boolean indicating per atom metric.
+
+    Args:
+        property_name (str): The name of the property (e.g., 'energy', 'forces', 'stress').
+        per_atom (bool): If True, the metric type is PER_ATOM; otherwise, PER_STRUCTURE.
+
+    Returns:
+        PropertyMetric: The created PropertyMetric instance.
+
+    Raises:
+        ValueError: If the property name is invalid.
+    """
+    # Find the Property enum by matching the key
+    property_type = next((prop for prop in Property if prop.key == property_name.lower()), None)
+
+    if property_type is None:
+        raise ValueError(f"Invalid property name: {property_name}")
+
+    # Determine the metric type based on the boolean
+    metric_type = MetricType.PER_ATOM if per_atom else MetricType.PER_STRUCTURE
+
+    # Create and return the PropertyMetric instance
+    return PropertyMetric(property_type=property_type, metric_type=metric_type)

@@ -18,17 +18,41 @@ class Property(Enum):
         return self.key
 
 class MetricType(Enum):
-    """Enumeration of metric types for property calculations."""
+    """
+    Enumeration of metric types for property calculations.
+
+    Defines how a property is normalized or distributed across the system.
+
+    Attributes:
+        PER_STRUCTURE: Property is calculated for the entire structure.
+        PER_ATOM: Property is normalized per atom in the structure.
+        PER_SPECIES: Property is calculated separately for each atomic species.
+    """
     PER_STRUCTURE = "per structure"
     PER_ATOM = "per atom"
 
 @dataclass
 class PropertyMetric:
-    """Combines a physical property with a metric type for precise property representation."""
+    """
+    Combines a physical property with a metric type for precise property representation.
+
+    This class ensures that only valid combinations of properties and metrics are used,
+    and provides methods to retrieve the appropriate units.
+
+    Attributes:
+        property_type (Property): The physical property being represented.
+        metric_type (MetricType): The metric used for property calculation or normalization.
+    """
     property_type: Property
     metric_type: MetricType
 
     def __post_init__(self):
+        """
+        Validates the combination of property type and metric type.
+
+        Raises:
+            ValueError: If the metric type is not applicable for the given property type.
+        """
         valid_metrics = {
             Property.FORCES: [MetricType.PER_ATOM, MetricType.PER_STRUCTURE],
             Property.ENERGY: [MetricType.PER_ATOM, MetricType.PER_STRUCTURE],
@@ -38,6 +62,18 @@ class PropertyMetric:
             raise ValueError(f"Invalid metric type {self.metric_type} for property {self.property_type}")
 
     def get_units(self, add_metric: bool = True) -> str:
+        """
+          Retrieves the units for this property-metric combination.
+
+          Args:
+              add_metric (bool): If True, includes the metric in the unit string.
+
+          Returns:
+              str: The units, potentially including the metric (e.g., 'eV/atom' or just 'eV').
+
+          Raises:
+              ValueError: If an unknown metric type is encountered.
+          """
         base_units = self.property_type.unit
         if not add_metric:
             return base_units

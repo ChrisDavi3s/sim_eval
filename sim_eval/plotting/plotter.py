@@ -42,8 +42,7 @@ class Plotter:
             raise ValueError(f"Invalid property name: {property_name}")
 
     @staticmethod
-    def plot_box(cls,
-            frames: Frames,
+    def plot_box(frames: Frames,
             property_name: str,
             reference_calculator: PropertyCalculator,
             target_calculators: Union[PropertyCalculator, List[PropertyCalculator]],
@@ -73,7 +72,7 @@ class Plotter:
         Returns:
             Tuple[Figure, Axes]: A tuple containing the Figure and Axes objects of the plot.
         """
-        property_metric = cls._get_property_metric(property_name, per_atom)
+        property_metric = Plotter._get_property_metric(property_name, per_atom)
 
         if not isinstance(target_calculators, list):
             target_calculators = [target_calculators]
@@ -110,7 +109,7 @@ class Plotter:
 
         bp = ax.boxplot(data, positions=positions, widths=0.8, patch_artist=True)
 
-        colors = ['white'] + list(plt.cm.Pastel1(np.linspace(0, 1, len(target_calculators) - 1)))
+        colors = ['white'] + list(plt.cm.Pastel1(np.linspace(0, 1, len(calculators) - 1)))
         for i, patch in enumerate(bp['boxes']):
             patch.set_facecolor(colors[i % len(target_calculators)])
             patch.set_edgecolor('black')
@@ -139,8 +138,7 @@ class Plotter:
         return fig, ax
 
     @staticmethod
-    def plot_property_distribution(cls,
-                        frames: Frames,
+    def plot_property_distribution(frames: Frames,
                         property_name: str,
                         calculators: Union[PropertyCalculator, List[PropertyCalculator]],
                         per_atom: bool = False,
@@ -166,7 +164,7 @@ class Plotter:
         if not isinstance(calculators, list):
             calculators = [calculators]
 
-        property_metric = cls._get_property_metric(property_name, per_atom)
+        property_metric = Plotter._get_property_metric(property_name, per_atom)
 
         fig, ax = plt.subplots(figsize=(3 + len(calculators), 6))
         data = []
@@ -224,9 +222,8 @@ class Plotter:
                 f"{add_whitespace}Correlation: {correlation:.4f}")
 
     @staticmethod
-    def print_metrics(cls,
-                    frames: Frames,
-                    properties: Union[str, List[str]],
+    def print_metrics(frames: Frames,
+                    property_name: Union[str, List[str]],
                     reference_calculator: PropertyCalculator,
                     target_calculators: Union[PropertyCalculator, List[PropertyCalculator]],
                     per_atom: Union[bool, Tuple[bool, ...]] = False,
@@ -244,15 +241,15 @@ class Plotter:
         frame_number (Union[int, slice], optional): The frame number(s) to calculate metrics for. Defaults to all frames.
         group_per_species (bool, optional): Whether to group metrics by atom species. Defaults to False. Only works for forces that are per atom.
         """
-        if isinstance(properties, str):
-            properties = [properties]
+        if isinstance(property_name, str):
+            property_name = [property_name]
         if isinstance(per_atom, bool):
-            per_atom = (per_atom,) * len(properties)
+            per_atom = (per_atom,) * len(property_name)
         if not isinstance(target_calculators, list):
             target_calculators = [target_calculators]
 
-        for prop, is_per_atom in zip(properties, per_atom):
-            property_metric = cls._get_property_metric(prop, is_per_atom)
+        for prop, is_per_atom in zip(property_name, per_atom):
+            property_metric = Plotter._get_property_metric(prop, is_per_atom)
 
             if property_metric.property_type == Property.FORCES and group_per_species:
                 if not is_per_atom:
@@ -266,7 +263,7 @@ class Plotter:
                 correlation = frames.get_correlation(property_metric, reference_calculator, target_calc, frame_number)
 
                 print(f"\n  {target_calc.name}:")
-                print(cls._format_metrics(property_metric, np.mean(mae), np.mean(rmse), np.mean(correlation), "    "))
+                print(Plotter._format_metrics(property_metric, np.mean(mae), np.mean(rmse), np.mean(correlation), "    "))
 
                 if group_per_species and prop.lower() == 'forces' and is_per_atom:
                     print('\n    Per Atom Type:')
@@ -276,12 +273,11 @@ class Plotter:
                         rmse_per_atom = rmse.squeeze()[indices] 
                         correlation_per_atom = correlation.squeeze()[indices] 
                         print(f"    {atom_type}:")
-                        print(cls._format_metrics(property_metric, np.mean(mae_per_atom), np.mean(rmse_per_atom), np.mean(correlation_per_atom), "      "))        
+                        print(Plotter._format_metrics(property_metric, np.mean(mae_per_atom), np.mean(rmse_per_atom), np.mean(correlation_per_atom), "      "))        
 
     @staticmethod
-    def plot_scatter(cls,
-                frames: Frames,
-                properties: Union[str, List[str]],
+    def plot_scatter(frames: Frames,
+                property_name: Union[str, List[str]],
                 reference_calculator: PropertyCalculator,
                 target_calculator: PropertyCalculator,
                 per_atom: Union[bool, Tuple[bool, ...]] = False,
@@ -304,19 +300,19 @@ class Plotter:
         Returns:
             Tuple[Figure, Union[Axes, Tuple[Axes, ...]]]: A tuple containing the Figure and Axes objects of the plot.
         """
-        if isinstance(properties, str):
-            properties = [properties]
+        if isinstance(property_name, str):
+            property_name = [property_name]
         if isinstance(per_atom, bool):
-            per_atom = (per_atom,) * len(properties)
+            per_atom = (per_atom,) * len(property_name)
         if isinstance(display_metrics, bool):
-            display_metrics = (display_metrics,) * len(properties)
+            display_metrics = (display_metrics,) * len(property_name)
 
-        fig, axes = plt.subplots(1, len(properties), figsize=(6 * len(properties), 5))
-        if len(properties) == 1:
+        fig, axes = plt.subplots(1, len(property_name), figsize=(6 * len(property_name), 5))
+        if len(property_name) == 1:
             axes = [axes]
 
-        for ax, property_name, is_per_atom, show_metrics in zip(axes, properties, per_atom, display_metrics):
-            property_metric = cls._get_property_metric(property_name, is_per_atom)
+        for ax, property_name, is_per_atom, show_metrics in zip(axes, property_name, per_atom, display_metrics):
+            property_metric = Plotter._get_property_metric(property_name, is_per_atom)
             reference_data = frames.get_property_magnitude(property_metric, reference_calculator, frame_number)
             target_data = frames.get_property_magnitude(property_metric, target_calculator, frame_number)
 
@@ -343,10 +339,10 @@ class Plotter:
                 mae = np.mean(frames.get_mae(property_metric, reference_calculator, target_calculator, frame_number))
                 rmse = np.mean(frames.get_rmse(property_metric, reference_calculator, target_calculator, frame_number))
                 correlation = np.mean(frames.get_correlation(property_metric, reference_calculator, target_calculator, frame_number))
-                stats_text = cls._format_metrics(property_metric, mae, rmse, correlation)
+                stats_text = Plotter._format_metrics(property_metric, mae, rmse, correlation)
                 ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
                         fontsize=8, verticalalignment='top',
                         bbox=dict(boxstyle='round', facecolor='white', edgecolor='none', alpha=0.8))
 
         plt.tight_layout()
-        return fig, tuple(axes) if len(properties) > 1 else axes[0]
+        return fig, tuple(axes) if len(property_name) > 1 else axes[0]

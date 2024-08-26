@@ -70,36 +70,36 @@ class TestFrames(unittest.TestCase):
       self.nequip_calc.compute_properties(self.frames)
 
   def test_get_property_magnitude(self):
-      # Test energy per structure
-      energy_metric_structure = PropertyMetric(Property.ENERGY, MetricType.PER_STRUCTURE)
-      np.testing.assert_allclose(
-          self.frames.get_property_magnitude(energy_metric_structure, self.vasp_calc),
-          self.vasp_energies
-      )
+    # Test energy per structure
+    energy_metric_structure = PropertyMetric(Property.ENERGY, MetricType.PER_STRUCTURE)
+    np.testing.assert_allclose(
+        np.array(self.frames.get_property_magnitude(energy_metric_structure, self.vasp_calc)),
+        self.vasp_energies
+    )
 
-      # Test forces per atom
-      forces_metric_atom = PropertyMetric(Property.FORCES, MetricType.PER_ATOM)
-      expected_force_magnitudes = np.linalg.norm(self.vasp_forces, axis=2)
-      np.testing.assert_allclose(
-          self.frames.get_property_magnitude(forces_metric_atom, self.vasp_calc),
-          expected_force_magnitudes
-      )
+    # Test forces per atom
+    forces_metric_atom = PropertyMetric(Property.FORCES, MetricType.PER_ATOM)
+    expected_force_magnitudes_per_atom = np.linalg.norm(self.vasp_forces, axis=2)
+    np.testing.assert_allclose(
+        self.frames.get_property_magnitude(forces_metric_atom, self.vasp_calc),
+        expected_force_magnitudes_per_atom
+    )
 
-      # Test forces per struct
-      forces_metric_structure = PropertyMetric(Property.FORCES, MetricType.PER_STRUCTURE)
-      expected_force_magnitudes = np.sum(np.linalg.norm(self.vasp_forces, axis=2))
-      np.testing.assert_allclose(
-          self.frames.get_property_magnitude(forces_metric_structure, self.vasp_calc),
-          expected_force_magnitudes
-      )
+    # Test forces per structure
+    forces_metric_structure = PropertyMetric(Property.FORCES, MetricType.PER_STRUCTURE)
+    expected_force_magnitudes_per_structure = np.sum(expected_force_magnitudes_per_atom, axis=1)
+    np.testing.assert_allclose(
+        self.frames.get_property_magnitude(forces_metric_structure, self.vasp_calc),
+        expected_force_magnitudes_per_structure
+    )
 
-      # Test stress per structure
-      stress_metric_structure = PropertyMetric(Property.STRESS, MetricType.PER_STRUCTURE)
-      expected_stress_magnitudes = calculate_von_mises_stress(self.vasp_stresses)
-      np.testing.assert_allclose(
-          self.frames.get_property_magnitude(stress_metric_structure, self.vasp_calc),
-          expected_stress_magnitudes
-      )
+    # Test stress per structure
+    stress_metric_structure = PropertyMetric(Property.STRESS, MetricType.PER_STRUCTURE)
+    expected_stress_magnitudes = calculate_von_mises_stress(self.vasp_stresses)
+    np.testing.assert_allclose(
+        self.frames.get_property_magnitude(stress_metric_structure, self.vasp_calc),
+        expected_stress_magnitudes
+    )  
 
   def test_get_mae(self):
       # Test energy MAE per structure
@@ -115,6 +115,7 @@ class TestFrames(unittest.TestCase):
       vasp_forces_mag = np.linalg.norm(self.vasp_forces, axis=2)
       nequip_forces_mag = np.linalg.norm(self.nequip_forces, axis=2)
       expected_forces_mae = np.mean(np.abs(vasp_forces_mag - nequip_forces_mag), axis=0)
+      expected_forces_mae = np.array([expected_forces_mae])
       np.testing.assert_allclose(
           self.frames.get_mae(forces_metric_atom, self.vasp_calc, self.nequip_calc),
           expected_forces_mae
@@ -144,6 +145,7 @@ class TestFrames(unittest.TestCase):
       vasp_forces_mag = np.linalg.norm(self.vasp_forces, axis=2)
       nequip_forces_mag = np.linalg.norm(self.nequip_forces, axis=2)
       expected_forces_rmse = np.sqrt(np.mean((vasp_forces_mag - nequip_forces_mag)**2, axis=0))
+      expected_forces_rmse = np.array([expected_forces_rmse])
       np.testing.assert_allclose(
           self.frames.get_rmse(forces_metric_atom, self.vasp_calc, self.nequip_calc),
           expected_forces_rmse
@@ -176,6 +178,7 @@ class TestFrames(unittest.TestCase):
           np.corrcoef(vasp_forces_mag[:, i], nequip_forces_mag[:, i])[0, 1]
           for i in range(self.num_atoms)
       ])
+      expected_forces_corr = np.array([expected_forces_corr])
       np.testing.assert_allclose(
           self.frames.get_correlation(forces_metric_atom, self.vasp_calc, self.nequip_calc),
           expected_forces_corr

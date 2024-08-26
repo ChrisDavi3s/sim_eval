@@ -145,7 +145,7 @@ class Frames:
             data = np.linalg.norm(data, axis=-1)
             if property.metric_type == MetricType.PER_STRUCTURE:
                 # (n_frames, n_atoms) -> (n_frames,)
-                data = np.sum(data,)
+                data = np.sum(data,axis=-1)
 
         elif property.property_type == Property.STRESS:
             data = calculate_von_mises_stress(data)
@@ -159,10 +159,12 @@ class Frames:
 
         return data
 
-    def get_mae(self, property_metric: PropertyMetric,
-            reference_calculator: 'PropertyCalculator',
-            target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
-            frame_number: Union[int, List[int], slice] = slice(None)) -> np.ndarray:
+    def get_mae(self,
+                property_metric: PropertyMetric,
+                reference_calculator: 'PropertyCalculator',
+                target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
+                frame_number: Union[int, List[int], slice] = slice(None),
+                ) -> np.ndarray:
         """
         Calculate Mean Absolute Error (MAE) across specified frames.
 
@@ -197,7 +199,7 @@ class Frames:
             mae = np.mean(np.abs(reference_data - target_data), axis=0)
             maes.append(mae)
 
-        return np.array(maes).squeeze()
+        return np.array(maes)
 
     def get_rmse(self, property_metric: PropertyMetric,
             reference_calculator: 'PropertyCalculator',
@@ -237,7 +239,7 @@ class Frames:
             rmse = np.sqrt(np.mean((reference_data - target_data) ** 2, axis=0))
             rmses.append(rmse)
 
-        return np.array(rmses).squeeze()
+        return np.array(rmses)
 
     def get_correlation(self, property_metric: PropertyMetric,
                     reference_calculator: 'PropertyCalculator',
@@ -296,4 +298,4 @@ class Frames:
 
             correlations.append(correlation)
 
-        return np.array(correlations).squeeze()
+        return np.array(correlations)

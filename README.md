@@ -1,76 +1,60 @@
-# sim_eval
+# **sim_eval**
 
-sim_eval (better name suggestions appreciated) is a Python library for analyzing, quantifying, and comparing molecular simulation calculation errors.
+*V1 is here!!! Thanks Joel for being a great tester!*
 
-It excels in benchmarking machine learning potentials (like those from NequIP/Allegro) against reference calculations (such as VASP DFT).
+sim_eval is a Python library for analyzing, quantifying, and comparing molecular simulation calculation errors. It is designed to benchmark machine learning potentials against reference calculations, such as those from VASP DFT.
 
-## Use Case
+# Key Features
 
-If you:
-  - (a) have some structures (called frames in code) and,
-  - (b) have some associated calculations / a trained model that can calculate properties for those atoms
-    
-... look no further!
+- Load and Process Frames: Supports molecular dynamics frames in any ASE-supported format.
+- Compare Predictions: Evaluate energy, forces, and stress predictions against reference methods.
+- Error Metrics: Calculate MAE, RMSE, and correlation metrics.
+- Publication-Quality Plots: Generate plots for easy comparison and analysis.
 
-## Features
+## Supported Calculators
 
-- Load and process molecular dynamics generated frames
+- NequIP / Allegro: Machine learning potentials.
+- VASP: Single and multiple OUTCAR files, XML outputs.
+- CHGnet: Property calculator.
+- MACE: (Currently untested).
+- ASE Calculators: Compatible with any ASE-supported calculator.
 
-- Compare energy, forces, and stress predictions from different calculators against some reference benchmark method
+## Supported Properties
 
-- Calculate various error metrics (MAE, RMSE, correlation)
-- Generate publication-quality plots for easy comparison and analysis
+```python
+'energy' # Per atom energy or per structure energy (eV/atom or eV/structure)
+'forces' # Per atom forces or per structure forces (eV/Å/atom or eV/Å/structure)
+'stress' # Per atom structure stress (eV/Å^3) 
+```
 
-**Most plotters will accept MULTIPLE target systems allowing comparison of methods against each other on the SAME plot.**
+Only 'forces' has true per atom support, the other properties are per structure and are divided by the number of atoms in the structure.
 
-## Currently Implemented Comparisons
-- Nequip / Allegro
-  ```python
-  NequIPPropertyCalculator()
-  ```
-- VASP (single OUTCAR file)
-  ```python
-  VASPOUTCARPropertyCalculator()
-  ```
-- VASP (multiple OUTCAR files in a directory)
-  ```python
-  VASPOUTCARDirectoryPropertyCalculator()
-  ```
-- VASP (a folder of sorted XML outputs)
-  ```python
-  VASPXMLDDirectoryPropertyCalculator()
-  ```
-- CHGnet
-  ```python
-  CHGNetPropertyCalculator()
-  ```
-- MACE (UNTESTED)
-  ```python
-  MACEPropertyCalculator()
-  ```
-- (Anything with an ASE calculator) see https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
+# Installation
 
-## Installation
-To install the SimulationBenchmarks library directly from GitHub, run:
+To install sim_eval directly from GitHub, run:
 ```bash
 pip install git+https://github.com/ChrisDavi3s/sim_eval.git
 ```
 
-## Standalone Notebook
+To install in editable mode, clone the repository and run:
+```bash
+git clone https://github.com/ChrisDavi3s/sim_eval.git
+cd sim_eval
+pip install -e .
+```
 
-For those unwilling to install, please see the standalone notebook for a ready to go implementation of the library. The notebook can be found @ stand_alone_notebook.ipynb.
+# Usage
 
 ## Quick Start
 
-Please see examples/example.ipynb.
-
-
 Here's a simple example to get you started:
-```python
-from sim_eval import Frames, VASPXMLPropertyCalculator, NequIPPropertyCalculator
-from sim_eval.plotting import BasePlotter,EnergyPlotter, ForcesPlotter, StressPlotter
 
-# Load Frames - can be any ASE supported format
+```python
+
+from sim_eval import Frames, VASPXMLPropertyCalculator, NequIPPropertyCalculator
+from sim_eval import Plotter
+
+# Load Frames
 frames = Frames('example_frames.extxyz')
 
 # Set up calculators
@@ -81,137 +65,229 @@ nequip_calc = NequIPPropertyCalculator('Allegro', 'nequip_model.pth')
 frames.add_method_data(vasp_calc)
 frames.add_method_data(nequip_calc)
 
-#Print Metrics
-EnergyPlotter.print_metrics(frames, vasp_calc, nequip_calc)
+# Print Metrics
+Plotter.print_metrics(frames, ['energy', 'forces'], vasp_calc, nequip_calc)
 
-# Generate plots
-EnergyPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
-ForcesPlotter.plot_box(frames, vasp_calc, nequip_calc, per_atom=True)
-StressPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
-BasePlotter.plot_all_scatter(frames, vasp_calc, nequip_calc)
+# Generate Plots
+Plotter.plot_scatter(frames, 'forces', vasp_calc, nequip_calc, per_atom = True)
+```
+**Please look at the example notebook for a more detailed example.**
+
+## Advanced Plotting
+
+The new Plotter class provides a unified interface for creating various plots. All plots return a matplotlib figure object, which can be further customized or saved:
+
+1) Print Metrics: Print MAE, RMSE, and correlation metrics.
+2) Scatter Plots: Compare reference and target data.
+3) Box Plots: Visualize error distributions.
+4) Property Distribution: Analyze property values across calculators without comparison.
+
+### Print Metrics
+**Print out metrics when comparing calculators against some reference.**
+
+```python
+Plotter.print_metrics(frames = frames,
+                      property_name= ['energy','forces'], 
+                      reference_calculator = vasp_calc, 
+                      target_calculators = [chgnet_calc,nequip_calc], 
+                      per_atom=False)
 ```
 
-## OUTPUTS 
-
-### EnergyPlotter.print_metrics(frames, vasp_calc, nequip_calc)
-(A good model vs a bad model)
-```md
-
+```bash
 Energy Metrics (vs DFT (PBE)):
----------------
+----
+
+  CHGNet:
+    MAE: 269.3705 eV/structure
+    RMSE: 269.3722 eV/structure
+    Correlation: 0.8821
 
   Allegro:
-    MAE: 0.435113 eV
-    RMSE: 0.458745 eV
-    Correlation: 0.995340
-    MAE (average per atom): 0.002092 eV
-    RMSE (average per atom): 0.002206 eV
+    MAE: 0.3789 eV/structure
+    RMSE: 0.3840 eV/structure
+    Correlation: 0.9995
 
-  Allegro (2):
-    MAE: 735.355491 eV
-    RMSE: 735.355548 eV
-    Correlation: 0.990630
-    MAE (average per atom): 3.535363 eV
-    RMSE (average per atom): 3.535363 eV
+Forces Metrics (vs DFT (PBE)):
+----
+
+  CHGNet:
+    MAE: 93.4327 eV/Å/structure
+    RMSE: 93.5809 eV/Å/structure
+    Correlation: 0.8346
+
+  Allegro:
+    MAE: 1.7029 eV/Å/structure
+    RMSE: 2.0822 eV/Å/structure
+    Correlation: 0.9920
 ```
 
-### EnergyPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
-
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/ec69853b-e819-46e2-85a5-22fbc29c9f77)
-
-
-### ForcesPlotter.plot_box(frames, vasp_calc, [nequip_calc, second_nequip_calc], per_atom=True, group_spacing=1, box_spacing=0.2 , atom_types=['Li', 'P', 'S'])
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/1c3d5d48-3de7-491a-9ed5-52ae19d0dd63)
-
-### StressPlotter.plot_scatter(frames, vasp_calc, nequip_calc)
-
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/5ecc06cc-0352-4e09-8ee0-b025a2d6ce3a)
-
-### BasePlotter.plot_all_scatter(frames, vasp_calc, nequip_calc)
-
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/53e28a17-f518-472d-be77-74a208875d8b)
-
-### Plotting two different nequip models against a VASP run:
-
-![image](https://github.com/ChrisDavi3s/sim_eval/assets/9642076/60a1fb75-46b7-4c02-82a5-9ee00f4e3895)
-
-
-## Quick API overview: 
-
-### Loading Frames
-
+for a more advanced example, you can also print the metrics per atom species for the forces property:
 ```python
-class Frames(
-    file_path: str,
-    format: str | None = None,
-    index: int | str = ':'
-)
+Plotter.print_metrics(frames = frames, 
+                      property_name = ['energy','forces'], 
+                      reference_calculator = vasp_calc, 
+                      target_calculators = [chgnet_calc,nequip_calc], 
+                      per_atom=[False,True], 
+                      group_per_species=True)
 ```
 
-### Scatter plots
-```python
-(method) def plot_scatter(
-    frames: Frames,
-    reference_calculator: PropertyCalculator,
-    target_calculator: PropertyCalculator,
-    frame_number: int | slice = slice(None),
-    title: str = None,
-    display_metrics: bool = True
-) -> None
+```bash
+Energy Metrics (vs DFT (PBE)):
+----
+
+  CHGNet:
+    MAE: 269.3705 eV/structure
+    RMSE: 269.3722 eV/structure
+    Correlation: 0.8821
+
+  Allegro:
+    MAE: 0.3789 eV/structure
+    RMSE: 0.3840 eV/structure
+    Correlation: 0.9995
+
+Forces Metrics (vs DFT (PBE)):
+----
+
+  CHGNet:
+    MAE: 0.4548 eV/Å/atom
+    RMSE: 0.5253 eV/Å/atom
+    Correlation: 0.8243
+
+    Per Atom Type:
+    Li:
+      MAE: 0.3089 eV/Å/atom
+      RMSE: 0.3544 eV/Å/atom
+      Correlation: 0.9085
+    P:
+      MAE: 1.0422 eV/Å/atom
+      RMSE: 1.1252 eV/Å/atom
+      Correlation: 0.8445
+    S:
+      MAE: 0.5326 eV/Å/atom
+      RMSE: 0.6355 eV/Å/atom
+      Correlation: 0.6975
+      ...
+      ...
+      ...
 ```
 
-### Box plots
+### Scatter Plots
+
+**Compare the values of two calculators for a given property.**
+
 ```python
-(method) def plot_box(
-    frames: Frames,
+Plotter.plot_scatter(frames, 'forces', vasp_calc,  nequip_calc , per_atom=True)
+```
+![image](images/scatter_forces.png)
+
+And plotting several properties at once:
+```python
+Plotter.plot_scatter(frames = frames, 
+                    property_name = ['energy', 'forces', 'stress'], 
+                    reference_calculator = vasp_calc, 
+                    target_calculator = nequip_calc, 
+                    per_atom= [True, True, True])
+```
+![image](images/scatter_all_plots.png)
+
+
+property_name: str,
     reference_calculator: PropertyCalculator,
     target_calculators: PropertyCalculator | List[PropertyCalculator],
-    frame_number: int | slice = slice(None),
-    per_atom: bool = False
-) -> None
-```
-
-### Force box plots (ovverwrites plot_box)
-```python
-(method) def plot_box(
-    frames: Frames,
-    reference_calculator: PropertyCalculator,
-    target_calculators: PropertyCalculator | List[PropertyCalculator],
-    frame_number: int | slice = slice(None),
     per_atom: bool = False,
-    group_spacing: float = 1,         # Spacing between groups of boxes (ie different calculators)
-    box_spacing: float = 0.25,        # Spacing between boxes in a group (ie atom type)
-    atom_types: List[str] | None = None # List of atom types to plot
-) -> None
-```
-### Metrics
+    frame_number: int | slice = slice(None),
+    group_spacing: float = 1,
+    box_spacing
+### Box Plots
+**Compare the distribution of two calculators for a given property.**
 
 ```python
-(method) def print_metrics(
-    frames: Frames,
-    reference_calculator: PropertyCalculator,
-    target_calculators: PropertyCalculator | List[PropertyCalculator],
-    frame_number: int | slice = slice(None)
-) -> None
+Plotter.plot_box(frames = frames, 
+                 property_name = 'stress', 
+                 reference_calculator = vasp_calc, 
+                 target_calculators = [chgnet_calc, nequip_calc], 
+                 per_atom=True,
+                 legend_location='upper right')
 ```
-## Testing
+![image](images/box_stress.png)
 
-Github has a CI pipeline that runs the tests on every push. The tests are also run on every pull request (I think?).
+If looking at forces, you can also group per atom forces by species:
+```python
+Plotter.plot_box(frames=frames, 
+                 property_name= 'forces', 
+                 reference_calculator=vasp_calc, 
+                 target_calculator=[chgnet_calc, nequip_calc, second_nequip_calc], 
+                 per_atom=True, 
+                 legend_location='upper right', 
+                 group_per_species=True, 
+                 allowed_species=['Li', 'P', 'Cl'])
+```
+![image](images/box_force_per_atom.png)
 
-Test are written using the unittest module. To run the tests, navigate to the root directory of the project and run:
+
+### Property Distribution
+
+**Plot the raw disribution of a calculator.**
+
+```python
+Plotter.plot_property_distribution(frames = frames, 
+                                  property_name = 'forces', 
+                                  calculators = [vasp_calc, nequip_calc, chgnet_calc], per_atom=True, 
+                                  legend_location='upper right')
+```
+![image](images/distribution_forces.png)
+
+### Modifying plots
+
+Every plot returns a matplotlib figure object, which can be further customized or saved. For example:
+
+```python
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+from scipy.stats import gaussian_kde
+
+# Create the scatter plot
+fig,ax = Plotter.plot_scatter(frames, 'forces', vasp_calc,  nequip_calc , per_atom=True)
+
+# Get the scatter plot from the axis
+scatter = ax.collections[0]  
+
+# Extract the data from the scatter plot
+offsets = scatter.get_offsets()
+x, y = offsets[:, 0], offsets[:, 1]
+
+# Calculate the point density
+xy = np.vstack([x, y])
+z = gaussian_kde(xy)(xy)
+
+# Normalize the density values for coloring
+norm = Normalize(vmin=z.min(), vmax=z.max())
+
+# Update the scatter plot with the new colors
+scatter.set_array(z)
+scatter.set_cmap('viridis')  # Choose a colormap
+scatter.set_norm(norm)
+
+# Add a colorbar to the plot
+plt.colorbar(scatter, ax=ax, label='Density')
+
+# Display the modified plot
+# make the fig high res 
+fig.set_dpi(300)
+fig
+```
+
+![image](images/scatter_forces_density.png)
+
+# Testing
+
+The project includes a CI pipeline that runs tests on every push. Tests are written using the unittest module. To run the tests, navigate to the root directory and execute:
 
 ```bash
 python -m unittest discover
 ```
 
-or use the interface in your favourite IDE.
+# Contributing
 
+Contributions are welcome! Please open an issue to discuss any major changes. Ensure that tests are updated as appropriate.
 
-## Contributing
-
-Pull requests are welcome. I am happy to help with any issues you may have. For major changes, please open an issue first to discuss what you would like to change.
-
-Please make sure to update tests as appropriate. (I am aware the test coverage is not great, I am working on it!)
-
-
-❤️

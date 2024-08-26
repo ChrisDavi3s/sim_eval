@@ -3,9 +3,10 @@ from typing import List, Optional, Union, Dict
 import numpy as np
 from ase.io import read
 from scipy.stats import pearsonr
-from .property import Property
+from .property import Property, PropertyMetric, MetricType
 from .calculators import PropertyCalculator
 from ase.atoms import Atoms
+from .tools import normalize_frame_selection, calculate_von_mises_stress
 
 
 class Frames:
@@ -34,20 +35,37 @@ class Frames:
 
     def __len__(self) -> int:
         return len(self.frames)
-    
-    def get_number_of_atoms(self) -> int:
-        """Get the number of atoms in each frame."""
-        return len(self.frames[0])
-    
-    def get_atom_types_and_indices(self) -> Dict[str, List[int]]:
+
+    def get_number_of_atoms(self,
+                            frame_number: Union[int, List[int], slice] = slice(None)
+                            ) -> Union[int, List[int]]:
+        """
+        Get the number of atoms in specified frame(s).
+
+        Args:
+            frame_number (Union[int, List[int], slice], optional): The frame number(s) to get atom counts for. Defaults to all frames.
+
+        Returns:
+            Union[int, List[int]]: Number of atoms in the specified frame(s).
+
+        Raises:
+            ValueError: If the frame number input is invalid or out of bounds.
+        """
+        frames = normalize_frame_selection(len(self.frames), frame_number)
+        atom_counts = [len(self.frames[i]) for i in frames]
+        return atom_counts[0] if len(atom_counts) == 1 else atom_counts
+
+    def get_atom_types_and_indices(self, frame_number:int = 0) -> Dict[str, List[int]]:
         """
         Get the atom types and their corresponding indices.
 
         Returns:
             Dict[str, List[int]]: Dictionary with atom types as keys and their indices as values.
         """
+        if frame_number <0 or  frame_number >= len(self.frames):
+            raise ValueError(f"Invalid frame number {frame_number}")
         atom_types: Dict[str, List[int]] = defaultdict(list)
-        for i, atom in enumerate(self.frames[0]):
+        for i, atom in enumerate(self.frames[frame_number]):
             atom_types[atom.symbol].append(i)
         return dict(atom_types)
 
@@ -60,9 +78,9 @@ class Frames:
         """
         method.compute_properties(self)
 
-    def get_property(self, property: Property, 
-                     calculator: 'PropertyCalculator', 
-                     frame_number: Union[int, slice] = slice(None)) -> Union[np.ndarray, List[np.ndarray]]:
+    def get_property(self, property: Property,
+                     calculator: 'PropertyCalculator',
+                     frame_number: Union[int, List[int], slice] = slice(None)) -> Union[np.ndarray, List[np.ndarray]]:
         """
         Get a specific property for given frame(s) and calculator.
 
@@ -72,7 +90,7 @@ class Frames:
             frame_number (Union[int, slice], optional): The frame number(s) to get the property for. Defaults to all frames.
 
         Returns:
-            Union[np.ndarray, List[np.ndarray]]: 
+            Union[np.ndarray, List[np.ndarray]]:
             - For ENERGY: 1D array of shape (n_frames,)
             - For FORCES: 3D array of shape (n_frames, n_atoms, 3) if slice, or 2D array of shape (n_atoms, 3) if int
             - For STRESS: 2D array of shape (n_frames, 6) if slice, or 1D array of shape (6,) if int
@@ -80,6 +98,8 @@ class Frames:
         Raises:
             ValueError: If an invalid property type is provided or frame number is out of bounds.
         """
+        frames = normalize_frame_selection(len(self.frames), frame_number)
+
         property_map = {
             Property.ENERGY: lambda frame: frame.info[f'{calculator.name}_total_energy'],
             Property.FORCES: lambda frame: frame.arrays[f'{calculator.name}_forces'],
@@ -90,55 +110,13 @@ class Frames:
 
         get_frame_property = property_map[property]
 
-        self._check_frame_bounds(frame_number)
+        return np.array([get_frame_property(self.frames[i]) for i in frames])
 
-        if isinstance(frame_number, int):
-            return np.array(get_frame_property(self.frames[frame_number]))
-        else:
-            return np.array([get_frame_property(frame) for frame in self.frames[frame_number]])
-
-    @staticmethod
-    def calculate_von_mises_stress(stress_tensor):
-        """
-        Calculate the von Mises stress from a stress tensor.
-
-        Args:
-            stress_tensor (np.ndarray): Stress tensor in Voigt notation [xx, yy, zz, yz, xz, xy].
-
-        Returns:
-            np.ndarray: von Mises stress, shape matches input except last dimension is reduced to 1.
-        """
-        xx, yy, zz, yz, xz, xy = stress_tensor.T
-        von_mises = np.sqrt(0.5 * ((xx - yy)**2 + (yy - zz)**2 + (zz - xx)**2 + 6*(yz**2 + xz**2 + xy**2)))
-        return  np.array(von_mises).reshape(-1)
-
-    def _check_frame_bounds(self, frame_number: Union[int, slice]):
-        """
-        Check if the given frame number or slice is within bounds.
-
-        Args:
-            frame_number (Union[int, slice]): The frame number(s) to check.
-
-        Raises:
-            ValueError: If the frame number is out of bounds.
-        """
-
-        if isinstance(frame_number, int):
-            if frame_number < 0 or frame_number >= len(self.frames):
-                raise ValueError(f"Invalid frame number {frame_number}")
-        elif isinstance(frame_number, slice):
-            if frame_number.start is not None and frame_number.start < 0:
-                raise ValueError(f"Invalid start frame number {frame_number.start}")
-            if frame_number.stop is not None and frame_number.stop > len(self.frames):
-                raise ValueError(f"Invalid stop frame number {frame_number.stop}")
-        else:
-            raise ValueError("Invalid frame number")
-
-    def get_property_magnitude(self, property: Property,
-                            calculator: 'PropertyCalculator',
-                            frame_number: Union[int, slice] = slice(None)) -> np.ndarray:
-        data = self.get_property(property, calculator, frame_number)
-        
+    def get_property_magnitude(self,
+                              property: PropertyMetric,
+                              calculator: 'PropertyCalculator',
+                              frame_number: Union[int, List[int], slice] = slice(None)
+                              ) -> np.ndarray:
         """
         Get the magnitude of a property for given frame(s) and calculator.
 
@@ -148,168 +126,176 @@ class Frames:
             frame_number (Union[int, slice], optional): The frame number(s) to get the property for. Defaults to all frames.
 
         Returns:
-            np.ndarray: 
+            np.ndarray:
             - For ENERGY: 1D array of shape (n_frames,)
-            - For FORCES: 2D array of shape (n_frames, n_atoms) 
+            - For FORCES: 2D array of shape (n_frames, n_atoms) or (n_frames,)
             - For STRESS: 1D array of shape (n_frames,)
         """
+        frames = normalize_frame_selection(len(self.frames), frame_number)
+        data = self.get_property(property.property_type, calculator, frames)
 
-        if property == Property.ENERGY:
-            return np.array(data).reshape(-1)
-        elif property == Property.FORCES:
-            # For each frame, calculate the magnitude of the force for each atom
-            if isinstance(frame_number, int):
-                return np.linalg.norm(data, axis=-1).reshape(1, -1)
-            else:
-                return np.linalg.norm(data, axis=-1)
-        elif property == Property.STRESS:
-            return self.calculate_von_mises_stress(data)
+        if property.property_type == Property.ENERGY:
+            if property.metric_type == MetricType.PER_ATOM:
+                num_atoms = np.array(self.get_number_of_atoms(frames))
+                data /= num_atoms
+
+        elif property.property_type == Property.FORCES:
+            # Calculate the magnitude of the force for each atom
+            # (n_frames, n_atoms, 3) -> (n_frames, n_atoms)
+            data = np.linalg.norm(data, axis=-1)
+            if property.metric_type == MetricType.PER_STRUCTURE:
+                # (n_frames, n_atoms) -> (n_frames,)
+                data = np.sum(data,axis=-1)
+
+        elif property.property_type == Property.STRESS:
+            data = calculate_von_mises_stress(data)
+
+            if property.metric_type == MetricType.PER_ATOM:
+                num_atoms = np.array(self.get_number_of_atoms(frames))
+                data /= num_atoms
+
         else:
             raise ValueError("Invalid property type")
 
-    def get_mae(self, property: Property, 
-                reference_calculator: 'PropertyCalculator', 
+        return data
+
+    def get_mae(self,
+                property_metric: PropertyMetric,
+                reference_calculator: 'PropertyCalculator',
                 target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
-                frame_number: Optional[Union[int, slice]] = slice(None)) -> Union[np.ndarray, List[np.ndarray], float , List[float]]:
+                frame_number: Union[int, List[int], slice] = slice(None),
+                ) -> np.ndarray:
         """
-        Calculate Mean Absolute Error (MAE) across all specified frames.
+        Calculate Mean Absolute Error (MAE) across specified frames.
 
         Args:
-            property (PropertyType): The type of property to calculate MAE for.
+            property_metric (PropertyMetric): The property and metric type to calculate MAE for.
             reference_calculator (PropertyCalculator): The reference calculator.
             target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
-            frame_number (Optional[Union[int, slice]], optional): The frame number(s) to calculate MAE for. Defaults to all frames.
+            frame_number (Union[int, List[int], slice], optional): The frame number(s) to calculate MAE for. Defaults to all frames.
 
         Returns:
-            Union[float, List[np.ndarray], List[float]]: 
-            - For ENERGY: float, List[float]
-            - For FORCES: ndarray (n_frames, n_atoms), List[ndarray (n_atoms,)]
-            - For STRESS: float, List[float]
+            np.ndarray: MAE values. The shape depends on the property_metric and number of calculators:
+            - For ENERGY and STRESS: (n_calculators,)
+            - For FORCES:
+                - PER_STRUCTURE: (n_calculators,)
+                - PER_ATOM: (n_calculators, n_atoms)
+            Where n_calculators is 1 if a single calculator is provided.
+
+        Raises:
+            ValueError: If an invalid property_metric is provided.
         """
-        reference_data = self.get_property_magnitude(property, reference_calculator, frame_number)
-        
+        frames = normalize_frame_selection(len(self.frames), frame_number)
+        reference_data = self.get_property_magnitude(property_metric, reference_calculator, frames)
+
         if not isinstance(target_calculator, list):
             target_calculators = [target_calculator]
         else:
             target_calculators = target_calculator
-        
+
         maes = []
         for calc in target_calculators:
-            target_data = self.get_property_magnitude(property, calc, frame_number)
-            if property == Property.ENERGY:
-                # For ENERGY: Calculate MAE across all structures
-                # Result: Single scalar value representing average error in energy across all frames
-                mae = np.mean(np.abs(reference_data - target_data))
-            elif property == Property.FORCES:
-                # For FORCES: Calculate MAE for each atom, averaged over all structures
-                # Result: 1D array with length equal to number of atoms, each value represents average error in force for that atom
-                mae = np.mean(np.abs(reference_data - target_data), axis=0)
-            elif property == Property.STRESS:
-                # For STRESS: Calculate MAE across all structures
-                # Result: Single scalar value representing average error in stress across all frames
-                mae = np.mean(np.abs(reference_data - target_data))
+            target_data = self.get_property_magnitude(property_metric, calc, frames)
+            mae = np.mean(np.abs(reference_data - target_data), axis=0)
             maes.append(mae)
-        
-        return maes[0] if len(maes) == 1 else maes
 
+        return np.array(maes)
 
-
-    def get_rmse(self, property: Property, 
-                 reference_calculator: 'PropertyCalculator', 
-                 target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
-                 frame_number: Optional[Union[int, slice]] = slice(None)) -> Union[float, List[np.ndarray], List[float]]:
+    def get_rmse(self, property_metric: PropertyMetric,
+            reference_calculator: 'PropertyCalculator',
+            target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
+            frame_number: Union[int, List[int], slice] = slice(None)) -> np.ndarray:
         """
-        Calculate Root Mean Square Error (RMSE) across all specified frames.
+        Calculate Root Mean Square Error (RMSE) across specified frames.
 
         Args:
-            property (PropertyType): The type of property to calculate RMSE for.
+            property_metric (PropertyMetric): The property and metric type to calculate RMSE for.
             reference_calculator (PropertyCalculator): The reference calculator.
             target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
-            frame_number (Optional[Union[int, slice]], optional): The frame number(s) to calculate RMSE for. Defaults to all frames.
+            frame_number (Union[int, List[int], slice], optional): The frame number(s) to calculate RMSE for. Defaults to all frames.
 
         Returns:
-            Union[float, List[np.ndarray], List[float]]: 
-            - For ENERGY: float, List[float]
-            - For FORCES: ndarray (n_atoms,), List[ndarray (n_atoms,)]
-            - For STRESS: float, List[float]
+            np.ndarray: RMSE values. The shape depends on the property_metric and number of calculators:
+            - For ENERGY and STRESS: (n_calculators,)
+            - For FORCES:
+                - PER_STRUCTURE: (n_calculators,)
+                - PER_ATOM: (n_calculators, n_atoms)
+            Where n_calculators is 1 if a single calculator is provided.
+
+        Raises:
+            ValueError: If an invalid property_metric is provided.
         """
-        reference_data = self.get_property_magnitude(property, reference_calculator, frame_number)
-        
+        frames = normalize_frame_selection(len(self.frames), frame_number)
+        reference_data = self.get_property_magnitude(property_metric, reference_calculator, frames)
+
         if not isinstance(target_calculator, list):
             target_calculators = [target_calculator]
         else:
             target_calculators = target_calculator
-        
+
         rmses = []
         for calc in target_calculators:
-            target_data = self.get_property_magnitude(property, calc, frame_number)
-            if property == Property.ENERGY:
-                # For ENERGY: Calculate RMSE across all structures
-                # Result: Single scalar value representing root mean square error in energy across all frames
-                rmse = np.sqrt(np.mean((reference_data - target_data) ** 2))
-            elif property == Property.FORCES:
-                # For FORCES: Calculate RMSE for each atom, across all structures
-                # Result: 1D array with length equal to number of atoms, each value represents root mean square error in force for that atom
-                rmse = np.sqrt(np.mean((reference_data - target_data) ** 2, axis=0))
-            elif property == Property.STRESS:
-                # For STRESS: Calculate RMSE across all structures
-                # Result: Single scalar value representing root mean square error in stress across all frames
-                rmse = np.sqrt(np.mean((reference_data - target_data) ** 2))
+            target_data = self.get_property_magnitude(property_metric, calc, frames)
+            rmse = np.sqrt(np.mean((reference_data - target_data) ** 2, axis=0))
             rmses.append(rmse)
-        
-        return rmses[0] if len(rmses) == 1 else rmses
 
-    def get_correlation(self, property: Property, 
-                        reference_calculator: 'PropertyCalculator', 
-                        target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
-                        frame_number: Optional[Union[int, slice]] = slice(None)) -> Union[float, List[np.ndarray], List[float]]:
+        return np.array(rmses)
+
+    def get_correlation(self, property_metric: PropertyMetric,
+                    reference_calculator: 'PropertyCalculator',
+                    target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
+                    frame_number: Union[int, List[int], slice] = slice(None)) -> np.ndarray:
         """
-        Calculate Pearson correlation coefficient across all specified frames.
+        Calculate the Pearson correlation coefficient for a specified property across frames.
+
+        This method computes the correlation between the reference and target calculators'
+        computed properties for the specified frames. The correlation is calculated for each
+        property type and metric combination.
 
         Args:
-            property (PropertyType): The type of property to calculate correlation for.
-            reference_calculator (PropertyCalculator): The reference calculator.
-            target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
-            frame_number (Optional[Union[int, slice]], optional): The frame number(s) to calculate correlation for. Defaults to all frames.
+            property_metric (PropertyMetric): The property and metric type for which to calculate the correlation.
+            reference_calculator (PropertyCalculator): The calculator providing reference property values.
+            target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): The calculator(s) providing target property values.
+            frame_number (Union[int, List[int], slice], optional): The frame number(s) to calculate correlation for. Defaults to all frames.
 
         Returns:
-            Union[float, List[np.ndarray], List[float]]: 
-            - For ENERGY: float, List[float]
-            - For FORCES: ndarray (n_atoms,), List[ndarray (n_atoms,)]
-            - For STRESS: float, List[float]
-        """
-        reference_data = self.get_property_magnitude(property, reference_calculator, frame_number)
-        
-        if not isinstance(target_calculator, list):
-            target_calculators = [target_calculator]
-        else:
-            target_calculators = target_calculator
-        
-        correlations = []
-        for calc in target_calculators:
-            target_data = self.get_property_magnitude(property, calc, frame_number)
-            if property == Property.ENERGY:
-                # For ENERGY: Calculate Pearson correlation coefficient across all structures
-                # Result: Single scalar value representing correlation of energies across all frames
-                if reference_data.size < 2 or target_data.size < 2:
-                    correlation = np.nan  # Not enough data points to compute correlation
-                else:
-                    correlation = pearsonr(reference_data, target_data)[0]
-            elif property == Property.FORCES:
-                # For FORCES: Calculate Pearson correlation coefficient for each atom, across all structures
-                # Result: 1D array with length equal to number of atoms, each value represents correlation of forces for that atom
-                if reference_data.shape[0] < 2:
-                    correlation = np.full(reference_data.shape[1], np.nan)  # Not enough frames to compute correlation per atom
-                else:
-                    correlation = np.array([pearsonr(reference_data[:, atom], target_data[:, atom])[0] for atom in range(reference_data.shape[1])])
-            elif property == Property.STRESS:
-                # For STRESS: Calculate Pearson correlation coefficient across all structures
-                # Result: Single scalar value representing correlation of stresses across all frames
-                if reference_data.size < 2 or target_data.size < 2:
-                    correlation = np.nan  # Not enough data points to compute correlation
-                else:
-                    correlation = pearsonr(reference_data, target_data)[0]
-            correlations.append(correlation)
-        
-        return correlations[0] if len(correlations) == 1 else correlations
+            np.ndarray: An array of correlation values. The shape depends on the property_metric:
+            - For ENERGY and STRESS: (n_calculators,)
+            - For FORCES:
+                - PER_STRUCTURE: (n_calculators,)
+                - PER_ATOM: (n_calculators, n_atoms)
+            Where n_calculators is 1 if a single calculator is provided.
 
+        Raises:
+            ValueError: If an invalid property_metric is provided.
+        """
+        frames = normalize_frame_selection(len(self.frames), frame_number)
+        reference_data = self.get_property_magnitude(property_metric, reference_calculator, frames)
+        target_calculators = target_calculator if isinstance(target_calculator, list) else [target_calculator]
+
+        correlations = []
+
+        for calc in target_calculators:
+            target_data = self.get_property_magnitude(property_metric, calc, frames)
+
+            if reference_data.ndim == 1:
+                # 1D Data: ENERGY, STRESS, or FORCES.PER_STRUCTURE
+                if reference_data.size < 2 or target_data.size < 2:
+                    correlation = np.nan
+                else:
+                    correlation = pearsonr(reference_data, target_data)[0]
+            elif reference_data.ndim == 2:
+                # 2D Data: FORCES.PER_ATOM
+                if reference_data.shape[0] < 2:
+                    correlation = np.full(reference_data.shape[1], np.nan)
+                else:
+                    correlation = np.array([
+                        pearsonr(reference_data[:, atom], target_data[:, atom])[0]
+                        for atom in range(reference_data.shape[1])
+                    ])
+            else:
+                raise ValueError("Unexpected data shape for correlation calculation")
+
+            correlations.append(correlation)
+
+        return np.array(correlations)

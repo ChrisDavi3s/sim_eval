@@ -50,7 +50,7 @@ class Plotter:
             frame_number: Union[int, slice] = slice(None),
             group_spacing: float = 1.0,
             box_spacing: float = 0.25,
-            legend_location: str = 'upper right',
+            legend_location: Optional[str] = None,
             group_per_species: bool = False,
             allowed_species: Optional[List[str]] = None) -> Tuple[Figure, Axes]:
         """
@@ -109,7 +109,7 @@ class Plotter:
 
         bp = ax.boxplot(data, positions=positions, widths=0.8, patch_artist=True)
 
-        colors = ['white'] + list(plt.cm.Pastel1(np.linspace(0, 1, len(calculators) - 1)))
+        colors = ['white'] + list(plt.cm.Pastel1(np.linspace(0, 1, len(target_calculators) - 1)))
         for i, patch in enumerate(bp['boxes']):
             patch.set_facecolor(colors[i % len(target_calculators)])
             patch.set_edgecolor('black')
@@ -119,18 +119,22 @@ class Plotter:
         ax.set_title(f'{property_name.capitalize()} Error Distribution\nReference: {reference_calculator.name}')
         ax.set_ylabel(f'{property_name.capitalize()} Error ({property_metric.get_units()})')
 
-        # Set x-ticks and labels
+        # Calculate the centers of the groups for x-ticks
         if group_per_species and property_name.lower() == 'forces' and per_atom:
             group_centers = [np.mean(positions[i:i+len(target_calculators)]) for i in range(0, len(positions), len(target_calculators))]
             ax.set_xticks(group_centers)
             ax.set_xticklabels(list(atom_types_dict.keys()), rotation=45, ha='right')
         else:
-            ax.set_xticks(range(len(target_calculators)))
-            ax.set_xticklabels([calc.name for calc in target_calculators], rotation=45, ha='right')
+            # Calculate the centers for each individual box plot
+            box_centers = [np.mean(positions[i:i+1]) for i in range(len(positions))]
+            ax.set_xticks(box_centers)
+            ax.set_xticklabels(labels, rotation=45, ha='right')
+
 
         legend_elements = [plt.Rectangle((0, 0), 1, 1, facecolor=colors[i], edgecolor='black', label=calc.name)
                             for i, calc in enumerate(target_calculators)]
-        ax.legend(handles=legend_elements, title="Calculators", loc=legend_location)
+        if legend_location:
+            ax.legend(handles=legend_elements, title="Calculators", loc=legend_location)
 
         ax.set_xlabel('Calculators' if not (group_per_species and property_name.lower() == 'forces' and per_atom) else 'Atom Types')
 

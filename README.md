@@ -1,6 +1,6 @@
 # **sim_eval**
 
-*V1 is here!!! Thanks Joel for being a great tester!*
+*V1 is here!!! Thanks Joel for the feedback!*
 
 sim_eval is a Python library for analyzing, quantifying, and comparing molecular simulation calculation errors. It is designed to benchmark machine learning potentials against reference calculations, such as those from VASP DFT.
 

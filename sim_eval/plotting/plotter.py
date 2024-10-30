@@ -43,41 +43,39 @@ class Plotter:
 
     @staticmethod
     def plot_box(frames: Frames,
-            property_name: str,
-            reference_calculator: PropertyCalculator,
-            target_calculators: Union[PropertyCalculator, List[PropertyCalculator]],
-            per_atom: bool = False,
-            frame_number: Union[int, slice] = slice(None),
-            group_spacing: float = 1.0,
-            box_spacing: float = 0.25,
-            legend_location: Optional[str] = None,
-            group_per_species: bool = False,
-            allowed_species: Optional[List[str]] = None) -> Tuple[Figure, Axes]:
+                property_name: str,
+                reference_calculator: PropertyCalculator,
+                target_calculators: Union[PropertyCalculator, List[PropertyCalculator]],
+                per_atom: bool = False,
+                frame_number: Union[int, slice] = slice(None),
+                group_spacing: float = 1.0,
+                box_spacing: float = 0.25,
+                legend_location: Optional[str] = None,
+                group_per_species: bool = False,
+                allowed_species: Optional[List[str]] = None) -> Tuple[Figure, Axes]:
         """
-        Create a box plot of errors for a specific property.
+        Create scatter plots comparing reference and target data for one or more properties.
 
         Args:
             frames (Frames): The Frames object containing the data.
-            property_name (str): The name of the property to plot ('energy', 'forces', or 'stress').
+            properties (Union[str, List[str]]): The name(s) of the property to plot ('energy', 'forces', or 'stress').
             reference_calculator (PropertyCalculator): The reference calculator.
-            target_calculators (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
-            per_atom (bool, optional): Whether to use per-atom metrics. Defaults to False.
+            target_calculator (PropertyCalculator): The target calculator.
+            per_atom (Union[bool, Tuple[bool, ...]], optional): Whether to use per-atom metrics. Defaults to False.
             frame_number (Union[int, slice], optional): The frame number(s) to plot. Defaults to all frames.
-            group_spacing (float, optional): Spacing between groups of boxes. Defaults to 1.0.
-            box_spacing (float, optional): Spacing between boxes within a group. Defaults to 0.25.
-            legend_location (str, optional): Location of the legend. Defaults to 'upper right'.
-            group_per_species (bool, optional): Whether to group metrics by atom species. Defaults to False.
-            allowed_species (List[str], optional): List of allowed species to include. Defaults to None (all species).
+            title (str, optional): The title of the plot. Defaults to None.
+            display_metrics (Union[bool, Tuple[bool, ...]], optional): Whether to display metric statistics. Defaults to True.
 
         Returns:
-            Tuple[Figure, Axes]: A tuple containing the Figure and Axes objects of the plot.
+            Tuple[Figure, Union[Axes, Tuple[Axes, ...]]]: A tuple containing the Figure and Axes objects of the plot.
         """
+
         property_metric = Plotter._get_property_metric(property_name, per_atom)
 
         if not isinstance(target_calculators, list):
             target_calculators = [target_calculators]
 
-        reference_data = frames.get_property_magnitude(property_metric, reference_calculator, frame_number)
+        reference_data = frames.get_flattened_property_magnitude(property_metric, reference_calculator, frame_number)
 
         data = []
         labels = []
@@ -85,7 +83,7 @@ class Plotter:
 
         # Determine if we should group by atom types
         if group_per_species and property_name.lower() == 'forces' and per_atom:
-            all_atom_types = frames.get_atom_types_and_indices()
+            all_atom_types = frames.get_atom_types_and_indices(frame_number)
             # Filter atom types based on allowed species
             if allowed_species:
                 atom_types_dict = {at: all_atom_types[at] for at in allowed_species if at in all_atom_types}
@@ -99,13 +97,22 @@ class Plotter:
 
         for i, (atom_type, indices) in enumerate(atom_types_dict.items()):
             for j, target_calc in enumerate(target_calculators):
-                target_data = frames.get_property_magnitude(property_metric, target_calc, frame_number)
-                error = np.abs(reference_data[..., indices] - target_data[..., indices])
-                if error.ndim > 1:
-                    error = error.flatten()
-                data.append(error)
-                labels.append(f"{target_calc.name} ({atom_type})" if atom_type != 'All' else target_calc.name)
-                positions.append(i * (len(target_calculators) * (1 + box_spacing) + group_spacing) + j * (1 + box_spacing))
+                target_data = frames.get_flattened_property_magnitude(property_metric, target_calc, frame_number)
+                
+                # Handle cases where indices might be out of range
+                if isinstance(indices, slice):
+                    error = np.abs(reference_data - target_data)
+                else:
+                    valid_indices = [idx for idx in indices if idx < len(reference_data)]
+                    error = np.abs(reference_data[valid_indices] - target_data[valid_indices])
+                
+                if len(error) > 0:  # Only add data if there are valid errors
+                    data.append(error)
+                    labels.append(f"{target_calc.name} ({atom_type})" if atom_type != 'All' else target_calc.name)
+                    positions.append(i * (len(target_calculators) * (1 + box_spacing) + group_spacing) + j * (1 + box_spacing))
+
+        if not data:
+            raise ValueError("No valid data to plot. Check your frame selection and atom types.")
 
         bp = ax.boxplot(data, positions=positions, widths=0.8, patch_artist=True)
 
@@ -129,7 +136,6 @@ class Plotter:
             box_centers = [np.mean(positions[i:i+1]) for i in range(len(positions))]
             ax.set_xticks(box_centers)
             ax.set_xticklabels(labels, rotation=45, ha='right')
-
 
         legend_elements = [plt.Rectangle((0, 0), 1, 1, facecolor=colors[i], edgecolor='black', label=calc.name)
                             for i, calc in enumerate(target_calculators)]
@@ -317,12 +323,12 @@ class Plotter:
 
         for ax, property_name, is_per_atom, show_metrics in zip(axes, property_name, per_atom, display_metrics):
             property_metric = Plotter._get_property_metric(property_name, is_per_atom)
-            reference_data = frames.get_property_magnitude(property_metric, reference_calculator, frame_number)
-            target_data = frames.get_property_magnitude(property_metric, target_calculator, frame_number)
+            reference_data = frames.get_flattened_property_magnitude(property_metric, reference_calculator, frame_number)
+            target_data = frames.get_flattened_property_magnitude(property_metric, target_calculator, frame_number)
 
-            ax.scatter(reference_data.flatten(), target_data.flatten(), alpha=0.6, color='black', s=20, edgecolors='none')
+            ax.scatter(reference_data, target_data, alpha=0.6, color='black', s=20, edgecolors='none')
 
-            all_data = np.concatenate([reference_data.flatten(), target_data.flatten()])
+            all_data = np.concatenate([reference_data, target_data])
             min_val, max_val = np.min(all_data), np.max(all_data)
             range_val = max_val - min_val
             buffer = range_val * 0.05

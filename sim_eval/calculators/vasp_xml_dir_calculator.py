@@ -72,23 +72,19 @@ class VASPXMLDiretoryPropertyCalculator(PropertyCalculator):
             print(f"Warning: More frames in OUTCAR ({len(sorted_vasp_files)}) than input frames ({len(frames)}). Using only the first {len(frames)} OUTCAR frames.")
             sorted_vasp_files = sorted_vasp_files[:len(frames)]
 
-
         for i, (filename, frame) in enumerate(tqdm(zip(sorted_vasp_files, frames.frames), total=len(frames), desc=f"Computing {self.name} properties")):
             
             file = os.path.join(self.directory, filename)
 
             try:
-                vasp_atoms:  Union[Atoms, List[Atoms]] = read(file)
+                vasp_atoms: Union[Atoms, List[Atoms]] = read(file)
             except Exception as e:
                 print(f"Error reading XML file {filename}: {str(e)}. Skipping.")
                 continue
             
-            # if we get a list of Atoms, we proceed with the first structure
-            if isinstance(vasp_atoms, List):
-                print(f"Error reading {filename} XML file : Got a list of Atoms. Proceeding with the first structure from the filename")
-                filename = filename[0]
-                continue
-
+            if isinstance(vasp_atoms, list):
+                print(f"Warning: {filename} contains multiple structures. Using the first structure.")
+                vasp_atoms = vasp_atoms[0]
 
             if self.has_energy:
                 energy_key = f'{self.name}_total_energy'

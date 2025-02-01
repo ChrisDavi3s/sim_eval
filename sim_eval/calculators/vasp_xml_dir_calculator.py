@@ -46,33 +46,43 @@ class VASPXMLDiretoryPropertyCalculator(PropertyCalculator):
         self.base_name: str = base_name
         self.index: Union[int, slice, str] = index
 
-    def compute_properties(self, frames: 'Frames') -> None:  # noqa F821
-        pattern = re.compile(f"{self.base_name}_(\\d+)\\.xml")
-        vasp_files = [f for f in os.listdir(self.directory) if pattern.match(f)]        
-        
-        def get_frame_number(filename):
-            match = pattern.match(filename)
-            return int(match.group(1)) if match else -1
-        
-        sorted_vasp_files = sorted(vasp_files, key=get_frame_number)
+    def compute_properties(self, frames: 'Frames') -> None:
 
-        # Apply the index to select directories
-        if isinstance(self.index, int):
-            sorted_vasp_files = [sorted_vasp_files[self.index]]
-        elif isinstance(self.index, slice):
-            sorted_vasp_files = sorted_vasp_files[self.index]
-        # If it's a string ':' we keep all directories
+        pattern = re.compile(re.escape(self.base_name) + r"_(\d+)\.xml")
+        vasp_files = [f for f in os.listdir(self.directory) if pattern.match(f)]
+        
+        vasp_files.sort(key=lambda x: int(pattern.match(x).group(1)))
 
-        if len(sorted_vasp_files) == 1:
+        if isinstance(self.index, str):
+            # Parse string slice notation (e.g., "0:5:2")
+            slice_parts = self.index.split(":")
+            if len(slice_parts) > 3:
+                raise ValueError(f"Invalid slice string: {self.index}")
+            
+            # Convert to integers (None for missing parts)
+            start = int(slice_parts[0]) if slice_parts[0] else None
+            stop = int(slice_parts[1]) if len(slice_parts) > 1 and slice_parts[1] else None
+            step = int(slice_parts[2]) if len(slice_parts) > 2 and slice_parts[2] else None
+            
+            self.index = slice(start, stop, step)
+
+        if isinstance(self.index, slice):
+            vasp_files = vasp_files[self.index]
+        elif isinstance(self.index, int):
+            vasp_files = [vasp_files[self.index]]
+        else:
+            raise TypeError(f"Invalid index type: {type(self.index)}")
+
+        if len(vasp_files) == 1:
             print("Warning: Only one frame found in OUTCAR. Repeating for all input frames.")
-            sorted_vasp_files = [sorted_vasp_files[0]] * len(frames)
-        elif len(sorted_vasp_files) < len(frames):
-            raise ValueError(f"Not enough frames in OUTCAR ({len(sorted_vasp_files)}) to match input frames ({len(frames)})")
-        elif len(sorted_vasp_files) > len(frames):
-            print(f"Warning: More frames in OUTCAR ({len(sorted_vasp_files)}) than input frames ({len(frames)}). Using only the first {len(frames)} OUTCAR frames.")
-            sorted_vasp_files = sorted_vasp_files[:len(frames)]
+            vasp_files = [vasp_files[0]] * len(frames)
+        elif len(vasp_files) < len(frames):
+            raise ValueError(f"Not enough frames in OUTCAR ({len(vasp_files)}) to match input frames ({len(frames)})")
+        elif len(vasp_files) > len(frames):
+            print(f"Warning: More frames in OUTCAR ({len(vasp_files)}) than input frames ({len(frames)}). Using only the first {len(frames)} OUTCAR frames.")
+            vasp_files = vasp_files[:len(frames)]
 
-        for i, (filename, frame) in enumerate(tqdm(zip(sorted_vasp_files, frames.frames), total=len(frames), desc=f"Computing {self.name} properties")):
+        for i, (filename, frame) in enumerate(tqdm(zip(vasp_files, frames.frames), total=len(frames), desc=f"Computing {self.name} properties")):
             
             file = os.path.join(self.directory, filename)
 

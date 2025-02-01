@@ -99,12 +99,7 @@ class Plotter:
             for j, target_calc in enumerate(target_calculators):
                 target_data = frames.get_flattened_property_magnitude(property_metric, target_calc, frame_number)
                 
-                # Handle cases where indices might be out of range
-                if isinstance(indices, slice):
-                    error = np.abs(reference_data - target_data)
-                else:
-                    valid_indices = [idx for idx in indices if idx < len(reference_data)]
-                    error = np.abs(reference_data[valid_indices] - target_data[valid_indices])
+                error = np.abs(reference_data[indices] - target_data[indices])
                 
                 if len(error) > 0:  # Only add data if there are valid errors
                     data.append(error)
@@ -182,7 +177,8 @@ class Plotter:
 
         for calc in calculators:
             # We need to flatten for forces and per_atom as (calc, atoms) ie (1,208) -> (208,)
-            property_data = frames.get_property_magnitude(property_metric, calc, frame_number).flatten()
+
+            property_data = frames.get_flattened_property_magnitude(property_metric, calc, frame_number)
             data.append(property_data)
             labels.append(calc.name)
 
@@ -277,11 +273,11 @@ class Plotter:
 
                 if group_per_species and prop.lower() == 'forces' and is_per_atom:
                     print('\n    Per Atom Type:')
-                    atoms_dict = frames.get_atom_types_and_indices()
+                    atoms_dict = frames.get_atom_types_and_indices(frame_number)
                     for atom_type, indices in atoms_dict.items():
-                        mae_per_atom = mae.squeeze()[indices] 
-                        rmse_per_atom = rmse.squeeze()[indices] 
-                        correlation_per_atom = correlation.squeeze()[indices] 
+                        mae_per_atom = mae.squeeze()
+                        rmse_per_atom = rmse.squeeze()
+                        correlation_per_atom = correlation.squeeze()
                         print(f"    {atom_type}:")
                         print(Plotter._format_metrics(property_metric, np.mean(mae_per_atom), np.mean(rmse_per_atom), np.mean(correlation_per_atom), "      "))        
 
@@ -355,4 +351,4 @@ class Plotter:
                         bbox=dict(boxstyle='round', facecolor='white', edgecolor='none', alpha=0.8))
 
         plt.tight_layout()
-        return fig, tuple(axes) if len(property_name) > 1 else axes[0]
+        return fig, tuple(axes) if len(axes) > 1 else axes[0]

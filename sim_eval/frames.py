@@ -78,25 +78,31 @@ class Frames:
             Dict[str, List[int]]: Dictionary with atom types as keys and
             their indices as values.
         """
+        # Precompute cumulative atoms for O(1) lookups
+        cumulative_atoms = np.cumsum([0] + [len(f) for f in self.frames])
+
         atom_types: Dict[str, List[int]] = defaultdict(list)
 
+        # Get original frame indices to process
         if frame_number is None:
-            frames_to_check = self.frames
+            frame_indices = range(len(self.frames))
         elif isinstance(frame_number, int):
             if frame_number < 0 or frame_number >= len(self.frames):
                 raise ValueError(f"Invalid frame number {frame_number}")
-            frames_to_check = [self.frames[frame_number]]
+            frame_indices = [frame_number]
         elif isinstance(frame_number, slice):
-            frames_to_check = self.frames[frame_number]
+            start, stop, step = frame_number.indices(len(self.frames))
+            frame_indices = range(start, stop, step)
         else:
             raise ValueError("frame_number must be int, slice, or None")
 
-        for frame_idx, frame in enumerate(frames_to_check):
-            for atom_idx, atom in enumerate(frame):
-                if isinstance(frame_number, slice):
-                    global_idx = frame_idx * len(frame) + atom_idx
-                else:
-                    global_idx = atom_idx
+        # Process selected frames
+        for orig_frame_idx in frame_indices:
+            frame = self.frames[orig_frame_idx]
+            start_idx = cumulative_atoms[orig_frame_idx]
+            
+            for atom_local_idx, atom in enumerate(frame):
+                global_idx = start_idx + atom_local_idx
                 atom_types[atom.symbol].append(global_idx)
 
         return dict(atom_types)
@@ -111,32 +117,27 @@ class Frames:
         method.compute_properties(self)
 
     def get_property(self, property: Property,
-                     calculator: 'PropertyCalculator',
-                     frame_number: Union[int, List[int], slice] = slice(None)
-                     ) -> Union[np.ndarray, List[np.ndarray]]:
+                    calculator: 'PropertyCalculator',
+                    frame_number: Union[int, List[int], slice] = slice(None)
+                    ) -> np.ndarray:
         """
-        Get a specific property for given frame(s) and calculator.
+        Get a specific property for given frame(s) and calculator as a numpy array.
 
         Args:
             property (Property): The type of property to retrieve.
-            calculator (PropertyCalculator): The ASE calculator used to compute
-                                             the property.
-            frame_number (Union[int, slice], optional):
-                                             The frame number(s) to
-                                             get the property for.
-                                             Defaults to all frames.
+            calculator (PropertyCalculator): The ASE calculator used to compute the property.
+            frame_number (Union[int, slice], optional): The frame number(s) to get the property for.
+                                                        Defaults to all frames.
 
         Returns:
-            Union[np.ndarray, List[np.ndarray]]:
+            np.ndarray: 
             - For ENERGY: 1D array of shape (n_frames,)
-            - For FORCES: 3D array of shape (n_frames, n_atoms, 3) if slice,
-                          or 2D array of shape (n_atoms, 3) if int
-            - For STRESS: 2D array of shape (n_frames, 6) if slice,
-                          or 1D array of shape (6,) if int
+            - For FORCES: If all frames have the same number of atoms, 3D array of shape (n_frames, n_atoms, 3).
+                        If atom counts vary, an object array of 2D arrays (n_frames,).
+            - For STRESS: 2D array of shape (n_frames, 6)
 
         Raises:
-            ValueError: If an invalid property type is provided or frame
-                        number is out of bounds.
+            ValueError: If an invalid property type is provided or frame number is out of bounds.
         """
         frames = normalize_frame_selection(len(self.frames), frame_number)
 
@@ -154,69 +155,91 @@ class Frames:
         get_frame_property = property_map[property]
 
         if property == Property.FORCES:
-            # Return a list of arrays for forces, as they may have different shapes
-            return [get_frame_property(self.frames[i]) for i in frames]
+            forces_list = [get_frame_property(self.frames[i]) for i in frames]
+            try:
+                # Attempt to create a 3D array (n_frames, n_atoms, 3)
+                return np.array(forces_list)
+            except ValueError:
+                # Handle varying atom counts with object array
+                arr = np.empty(len(forces_list), dtype=object)
+                arr[:] = forces_list
+                return arr
         else:
-            # For energy and stress, we can still use np.array
-            return np.array([get_frame_property(self.frames[i]) for i in frames])    
-
-    def get_property_magnitude(self,
-                               property: PropertyMetric,
-                               calculator: 'PropertyCalculator',
-                               frame_number: Union[int,
-                                                   List[int],
-                                                   slice] = slice(None)
-                               ) -> np.ndarray:
+            return np.array([get_frame_property(self.frames[i]) for i in frames])
+    
+    def get_property_magnitude(
+        self,
+        property_metric: PropertyMetric,  # Renamed to avoid conflict with built-in 'property'
+        calculator: 'PropertyCalculator',
+        frame_number: Union[int, List[int], slice] = slice(None)
+    ) -> np.ndarray:
         """
-        Get the magnitude of a property for given frame(s) and calculator.
+        Calculate and return the magnitude of a specified property for selected frames.
 
         Args:
-            property (PropertyType): The type of property to retrieve.
-            calculator (PropertyCalculator): The calculator used to compute
-                                             the property.
-            frame_number (Union[int, slice], optional):
-                                    The frame number(s) to get the property for
-                                    Defaults to all frames.
+            property_metric (PropertyMetric): Contains both property type and metric type
+            calculator (PropertyCalculator): Calculator used for property computation
+            frame_number (Union[int, List[int], slice]): Frame selection. Defaults to all frames.
 
         Returns:
-            np.ndarray:
-            - For ENERGY: 1D array of shape (n_frames,)
-            - For FORCES: 2D array of shape (n_frames, n_atoms) or (n_frames,)
-            - For STRESS: 1D array of shape (n_frames,)
+            np.ndarray: Property magnitudes with shape dependent on property type and metric:
+            - ENERGY:
+                - PER_STRUCTURE: (n_frames,)
+                - PER_ATOM: (n_frames,)
+            - FORCES:
+                - PER_STRUCTURE: (n_frames,)
+                - PER_ATOM: (n_frames,) of object dtype containing (n_atoms,) arrays
+            - STRESS:
+                - PER_STRUCTURE: (n_frames,)
+                - PER_ATOM: (n_frames,)
+
+        Raises:
+            ValueError: For unsupported property types
         """
         frames = normalize_frame_selection(len(self.frames), frame_number)
-        data = self.get_property(property.property_type, calculator, frames)
+        data = self.get_property(property_metric.property_type, calculator, frames)
 
-        if property.property_type == Property.ENERGY:
-            if property.metric_type == MetricType.PER_ATOM:
-                num_atoms = np.array(self.get_number_of_atoms(frames))
-                data /= num_atoms
+        # Convert to numpy array if not already (handles energy/stress cases)
+        if not isinstance(data, np.ndarray):
+            data = np.array(data)
 
-        elif property.property_type == Property.FORCES:
-            # Calculate the magnitude of the force for each atom
-            data = [np.linalg.norm(frame_data, axis=-1) for frame_data in data]
-            if property.metric_type == MetricType.PER_STRUCTURE:
-                # Sum over atoms for each frame
-                data = np.array([np.sum(frame_data) for frame_data in data])
-            # For PER_ATOM, keep it as a list of arrays
+        if property_metric.property_type == Property.ENERGY:
+            if property_metric.metric_type == MetricType.PER_ATOM:
+                num_atoms = self.get_number_of_atoms(frames)
+                data = data / np.array(num_atoms).reshape(-1, 1)
 
-        elif property.property_type == Property.STRESS:
+        elif property_metric.property_type == Property.FORCES:
+            if property_metric.metric_type == MetricType.PER_STRUCTURE:
+                # Sum force vectors per structure and compute magnitude
+                sum_forces = [np.sum(frame, axis=0) for frame in data]
+                data = np.array([np.linalg.norm(sf) for sf in sum_forces])
+            else:  # PER_ATOM
+                # Calculate force magnitudes per atom per frame
+                force_magnitudes = [np.linalg.norm(frame, axis=-1) for frame in data]
+                try:
+                    # Attempt regular array for uniform atom counts
+                    data = np.array(force_magnitudes)
+                except ValueError:
+                    # Fallback to object array for variable atom counts
+                    data = np.empty(len(force_magnitudes), dtype=object)
+                    data[:] = force_magnitudes
+
+        elif property_metric.property_type == Property.STRESS:
             data = calculate_von_mises_stress(data)
-
-            if property.metric_type == MetricType.PER_ATOM:
-                num_atoms = np.array(self.get_number_of_atoms(frames))
-                data /= num_atoms
+            if property_metric.metric_type == MetricType.PER_ATOM:
+                num_atoms = self.get_number_of_atoms(frames)
+                data = data / np.array(num_atoms).reshape(-1, 1)
 
         else:
-            raise ValueError("Invalid property type")
+            raise ValueError(f"Unsupported property type: {property_metric.property_type}")
 
-        return data
+        return data.squeeze()  # Remove singleton dimensions if needed
     
     def get_flattened_property_magnitude(self,
-                                   property_metric: PropertyMetric,
-                                   calculator: 'PropertyCalculator',
-                                   frame_number: Union[int, List[int], slice] = slice(None)
-                                   ) -> np.ndarray:
+                                        property_metric: PropertyMetric,
+                                        calculator: 'PropertyCalculator',
+                                        frame_number: Union[int, List[int], slice] = slice(None)
+                                        ) -> np.ndarray:
         """
         Get the flattened magnitude of a property for given frame(s) and calculator.
 
@@ -224,73 +247,49 @@ class Frames:
             property_metric (PropertyMetric): The property and metric type to retrieve.
             calculator (PropertyCalculator): The calculator used to compute the property.
             frame_number (Union[int, List[int], slice], optional): The frame number(s) to get the property for.
-                                                                    Defaults to all frames.
+                                                                Defaults to all frames.
 
         Returns:
-            np.ndarray: Flattened 1D array of property magnitudes.
+            np.ndarray: Flattened 1D array of property magnitudes. For PER_ATOM forces with varying atoms,
+                        this concatenates all per-atom values into a single 1D array.
         """
         data = self.get_property_magnitude(property_metric, calculator, frame_number)
         
-        if isinstance(data, list):  # For forces with variable atom counts
-            return np.concatenate(data)
+        if isinstance(data, np.ndarray) and data.dtype == object:
+            # Handle object arrays (e.g., PER_ATOM forces with varying atom counts)
+            return np.concatenate(data.tolist())
         else:
-            return data.flatten()
-    
+            return data.ravel()
+            
     def get_mae(self,
                 property_metric: PropertyMetric,
                 reference_calculator: 'PropertyCalculator',
-                target_calculator: Union['PropertyCalculator',
-                                         List['PropertyCalculator']],
+                target_calculator: Union['PropertyCalculator', List['PropertyCalculator']],
                 frame_number: Union[int, List[int], slice] = slice(None),
                 ) -> np.ndarray:
         """
-        Calculate Mean Absolute Error (MAE) across specified frames.
+        Calculate Mean Absolute Error (MAE) between reference and target calculators.
 
         Args:
-            property_metric (PropertyMetric):
-                            The property and metric type to calculate MAE for.
-            reference_calculator (PropertyCalculator):
-                            The reference calculator.
-            target_calculator (Union[PropertyCalculator,
-                               List[PropertyCalculator]]):
-                            The target calculator(s).
-            frame_number (Union[int, List[int], slice], optional):
-                            The frame number(s) to calculate MAE for.
-                            Defaults to all frames.
+            property_metric (PropertyMetric): The property and metric type for MAE calculation.
+            reference_calculator (PropertyCalculator): Reference calculator providing true values.
+            target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): Target calculator(s) to evaluate.
+            frame_number (Union[int, List[int], slice], optional): Frames to include. Defaults to all.
 
         Returns:
-            np.ndarray: MAE values.
-            The shape depends on the property_metric and number of calculators:
-            - For ENERGY and STRESS: (n_calculators,)
-            - For FORCES:
-                - PER_STRUCTURE: (n_calculators,)
-                - PER_ATOM: (n_calculators, n_atoms)
-            Where n_calculators is 1 if a single calculator is provided.
-
-        Raises:
-            ValueError: If an invalid property_metric is provided.
+            np.ndarray: MAE values for each target calculator. Shape: (n_calculators,).
         """
         frames = normalize_frame_selection(len(self.frames), frame_number)
         reference_data = self.get_flattened_property_magnitude(property_metric, reference_calculator, frames)
-
-        if not isinstance(target_calculator, list):
-            target_calculators = [target_calculator]
-        else:
-            target_calculators = target_calculator
+        target_calculators = target_calculator if isinstance(target_calculator, list) else [target_calculator]
 
         maes = []
         for calc in target_calculators:
             target_data = self.get_flattened_property_magnitude(property_metric, calc, frames)
-            
-            if isinstance(reference_data, list):  # For forces with variable atom counts
-                mae = np.mean([np.mean(np.abs(ref - tar)) for ref, tar in zip(reference_data, target_data)])
-            else:
-                mae = np.mean(np.abs(reference_data - target_data))
-            
-            maes.append(mae)
+            maes.append(np.mean(np.abs(reference_data - target_data)))
 
         return np.array(maes)
-    
+
     def get_rmse(self, 
                 property_metric: PropertyMetric,
                 reference_calculator: 'PropertyCalculator',
@@ -298,43 +297,26 @@ class Frames:
                 frame_number: Union[int, List[int], slice] = slice(None)
                 ) -> np.ndarray:
         """
-        Calculate Root Mean Square Error (RMSE) across specified frames.
+        Calculate Root Mean Square Error (RMSE) between reference and target calculators.
 
         Args:
-            property_metric (PropertyMetric): The property and metric type to calculate RMSE for.
-            reference_calculator (PropertyCalculator): The reference calculator.
-            target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): The target calculator(s).
-            frame_number (Union[int, List[int], slice], optional): The frame number(s) to calculate RMSE for.
-                                                                    Defaults to all frames.
+            property_metric (PropertyMetric): The property and metric type for RMSE calculation.
+            reference_calculator (PropertyCalculator): Reference calculator providing true values.
+            target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): Target calculator(s) to evaluate.
+            frame_number (Union[int, List[int], slice], optional): Frames to include. Defaults to all.
 
         Returns:
-            np.ndarray: RMSE values. The shape depends on the property_metric and number of calculators:
-            - For ENERGY and STRESS: (n_calculators,)
-            - For FORCES: (n_calculators,)
-            Where n_calculators is 1 if a single calculator is provided.
-
-        Raises:
-            ValueError: If an invalid property_metric is provided.
+            np.ndarray: RMSE values for each target calculator. Shape: (n_calculators,).
         """
         frames = normalize_frame_selection(len(self.frames), frame_number)
         reference_data = self.get_flattened_property_magnitude(property_metric, reference_calculator, frames)
-
-        if not isinstance(target_calculator, list):
-            target_calculators = [target_calculator]
-        else:
-            target_calculators = target_calculator
+        target_calculators = target_calculator if isinstance(target_calculator, list) else [target_calculator]
 
         rmses = []
         for calc in target_calculators:
             target_data = self.get_flattened_property_magnitude(property_metric, calc, frames)
-            
-            if isinstance(reference_data, list):  # For forces with variable atom counts
-                mse = np.mean([np.mean((ref - tar) ** 2) for ref, tar in zip(reference_data, target_data)])
-                rmse = np.sqrt(mse)
-            else:
-                rmse = np.sqrt(np.mean((reference_data - target_data) ** 2))
-            
-            rmses.append(rmse)
+            mse = np.mean((reference_data - target_data) ** 2)
+            rmses.append(np.sqrt(mse))
 
         return np.array(rmses)
 
@@ -345,36 +327,27 @@ class Frames:
                         frame_number: Union[int, List[int], slice] = slice(None)
                         ) -> np.ndarray:
         """
-        Calculate the Pearson correlation coefficient for a specified property across frames.
+        Calculate Pearson correlation between reference and target calculators.
 
         Args:
-            property_metric (PropertyMetric): The property and metric type for which to calculate the correlation.
-            reference_calculator (PropertyCalculator): The calculator providing reference property values.
-            target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): The calculator(s) providing target property values.
-            frame_number (Union[int, List[int], slice], optional): The frame number(s) to calculate correlation for.
-                                                                    Defaults to all frames.
+            property_metric (PropertyMetric): The property and metric type for correlation.
+            reference_calculator (PropertyCalculator): Reference calculator providing true values.
+            target_calculator (Union[PropertyCalculator, List[PropertyCalculator]]): Target calculator(s) to evaluate.
+            frame_number (Union[int, List[int], slice], optional): Frames to include. Defaults to all.
 
         Returns:
-            np.ndarray: An array of correlation values. The shape is (n_calculators,),
-            where n_calculators is 1 if a single calculator is provided.
-
-        Raises:
-            ValueError: If an invalid property_metric is provided.
+            np.ndarray: Pearson correlation coefficients. Shape: (n_calculators,).
         """
         frames = normalize_frame_selection(len(self.frames), frame_number)
         reference_data = self.get_flattened_property_magnitude(property_metric, reference_calculator, frames)
         target_calculators = target_calculator if isinstance(target_calculator, list) else [target_calculator]
 
         correlations = []
-
         for calc in target_calculators:
             target_data = self.get_flattened_property_magnitude(property_metric, calc, frames)
-
             if reference_data.size < 2 or target_data.size < 2:
-                correlation = np.nan
+                correlations.append(np.nan)
             else:
-                correlation = pearsonr(reference_data, target_data)[0]
-
-            correlations.append(correlation)
+                correlations.append(pearsonr(reference_data, target_data)[0])
 
         return np.array(correlations)

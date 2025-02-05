@@ -6,39 +6,69 @@ from scipy.stats import pearsonr
 from .property import Property, PropertyMetric, MetricType
 from .calculators import PropertyCalculator
 from ase.atoms import Atoms
+from ase.build.tools import sort
 from .tools import normalize_frame_selection, calculate_von_mises_stress
 
 
 class Frames:
     """
-    This class is used to store and manage atomic structures for property
-    calculations. It supports reading frames from any format that ASE can read.
+    This class is used to store and manage atomic structures for property calculations.
+    It supports reading frames from files (using ASE) or directly from ASE Atoms objects.
     """
     def __init__(self,
-                 file_path: str,
+                 file_path: Optional[str] = None,
                  format: Optional[str] = None,
-                 index: Union[int, str] = ':'):
+                 index: Union[int, str] = ':',
+                 sort_atoms_by_atomic_number: bool = False,
+                 atoms: Union[Atoms, List[Atoms], None] = None):
         """
-        Initialize Frames object.
+        Initialize Frames object from a file or ASE Atoms objects.
 
         Args:
-            file_path (str): Path to the file containing atomic structures.
-            format (Optional[str]): File format. If None, ASE will try to guess
-            the format.
-            index (Union[int, str]): Which frame(s) to read.
-                                     Default ':' reads all frames.
+            file_path (Optional[str]): Path to the file containing atomic structures.
+                Required if atoms is not provided.
+            format (Optional[str]): File format. If None, ASE will guess the format.
+                Ignored if atoms is provided.
+            index (Union[int, str]): Which frame(s) to read from the file.
+                Default ':' reads all frames. Ignored if atoms is provided.
+            sort_atoms_by_atomic_number (bool): Whether to sort atoms by atomic number.
+            atoms (Union[Atoms, List[Atoms], None]): ASE Atoms object(s) to use directly.
+                If provided, file_path is ignored.
 
         Raises:
+            ValueError: If neither file_path nor atoms are provided, or if both are provided.
             ValueError: If no frames are loaded.
+            TypeError: If atoms is not an ASE Atoms object or a list of them.
         """
-        self.file_path = file_path
-        self.frames: List[Atoms] = read(self.file_path,
-                                        index=index,
-                                        format=format)
+        if (file_path is not None) and (atoms is not None):
+            raise ValueError("Cannot specify both file_path and atoms; choose one.")
+        if file_path is None and atoms is None:
+            raise ValueError("Either file_path or atoms must be provided.")
+
+        if atoms is not None:
+            self.file_path = None
+            if isinstance(atoms, Atoms):
+                self.frames = [atoms]
+            elif isinstance(atoms, list):
+                if not all(isinstance(a, Atoms) for a in atoms):
+                    raise TypeError("All elements in atoms list must be ASE Atoms objects.")
+                self.frames = atoms.copy()
+            else:
+                raise TypeError("atoms must be an ASE Atoms object or a list of them.")
+        else:
+            self.file_path = file_path
+            self.frames = read(self.file_path, index=index, format=format)
+            if not isinstance(self.frames, list):
+                self.frames = [self.frames]
+
         if not self.frames:
-            raise ValueError("No frames were loaded from the file.")
-        if not isinstance(self.frames, list):
-            self.frames = [self.frames]
+            raise ValueError("No frames were loaded.")
+
+        if sort_atoms_by_atomic_number:
+            for i, frame in enumerate(self.frames):
+                self.frames[i] = sort(frame, tags=frame.get_atomic_numbers())
+
+        
 
     def __len__(self) -> int:
         return len(self.frames)
@@ -169,7 +199,7 @@ class Frames:
     
     def get_property_magnitude(
         self,
-        property_metric: PropertyMetric,  # Renamed to avoid conflict with built-in 'property'
+        property_metric: PropertyMetric,
         calculator: 'PropertyCalculator',
         frame_number: Union[int, List[int], slice] = slice(None)
     ) -> np.ndarray:
@@ -179,16 +209,16 @@ class Frames:
         Args:
             property_metric (PropertyMetric): Contains both property type and metric type
             calculator (PropertyCalculator): Calculator used for property computation
-            frame_number (Union[int, List[int], slice]): Frame selection. Defaults to all frames.
+            frame_number: Frame selection. Defaults to all frames.
 
         Returns:
-            np.ndarray: Property magnitudes with shape dependent on property type and metric:
+            np.ndarray: Property magnitudes with shapes:
             - ENERGY:
                 - PER_STRUCTURE: (n_frames,)
                 - PER_ATOM: (n_frames,)
             - FORCES:
                 - PER_STRUCTURE: (n_frames,)
-                - PER_ATOM: (n_frames,) of object dtype containing (n_atoms,) arrays
+                - PER_ATOM: (n_frames,) object array of (n_atoms,) arrays
             - STRESS:
                 - PER_STRUCTURE: (n_frames,)
                 - PER_ATOM: (n_frames,)
@@ -196,45 +226,50 @@ class Frames:
         Raises:
             ValueError: For unsupported property types
         """
+        # Get normalized frame indices and raw property data
         frames = normalize_frame_selection(len(self.frames), frame_number)
         data = self.get_property(property_metric.property_type, calculator, frames)
 
-        # Convert to numpy array if not already (handles energy/stress cases)
+        # Convert to numpy array for vector operations (except object arrays)
         if not isinstance(data, np.ndarray):
             data = np.array(data)
 
+        # ENERGY HANDLING
         if property_metric.property_type == Property.ENERGY:
             if property_metric.metric_type == MetricType.PER_ATOM:
                 num_atoms = self.get_number_of_atoms(frames)
-                data = data / np.array(num_atoms).reshape(-1, 1)
+                # Changed: Remove reshape to avoid broadcasting to matrix
+                data = data / np.array(num_atoms)  # Now element-wise division
 
+        # FORCES HANDLING 
         elif property_metric.property_type == Property.FORCES:
             if property_metric.metric_type == MetricType.PER_STRUCTURE:
-                # Sum force vectors per structure and compute magnitude
+                # Sum forces per structure and compute magnitude
                 sum_forces = [np.sum(frame, axis=0) for frame in data]
                 data = np.array([np.linalg.norm(sf) for sf in sum_forces])
             else:  # PER_ATOM
-                # Calculate force magnitudes per atom per frame
-                force_magnitudes = [np.linalg.norm(frame, axis=-1) for frame in data]
+                # Calculate magnitudes per atom, handle variable atom counts
+                force_mags = [np.linalg.norm(frame, axis=-1) for frame in data]
                 try:
-                    # Attempt regular array for uniform atom counts
-                    data = np.array(force_magnitudes)
+                    data = np.array(force_mags)  # Uniform atom counts
                 except ValueError:
-                    # Fallback to object array for variable atom counts
-                    data = np.empty(len(force_magnitudes), dtype=object)
-                    data[:] = force_magnitudes
+                    data = np.empty(len(force_mags), dtype=object)
+                    data[:] = force_mags  # Jagged array storage
 
+        # STRESS HANDLING
         elif property_metric.property_type == Property.STRESS:
             data = calculate_von_mises_stress(data)
             if property_metric.metric_type == MetricType.PER_ATOM:
                 num_atoms = self.get_number_of_atoms(frames)
-                data = data / np.array(num_atoms).reshape(-1, 1)
+                # Changed: Direct element-wise division without reshape
+                data = data / np.array(num_atoms)  # Preserves 1D shape
 
         else:
             raise ValueError(f"Unsupported property type: {property_metric.property_type}")
 
-        return data.squeeze()  # Remove singleton dimensions if needed
-    
+        # Remove singleton dimensions while preserving object arrays
+        return data.squeeze()
+
     def get_flattened_property_magnitude(self,
                                         property_metric: PropertyMetric,
                                         calculator: 'PropertyCalculator',

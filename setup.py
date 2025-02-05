@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sim_eval",
-    version="1.2",
+    version="1.3",
     description="A library for benchmarking simulation methods \
                 using various ASE calculators.",
     author="Chris Davies",

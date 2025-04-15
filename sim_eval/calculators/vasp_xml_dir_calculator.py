@@ -37,16 +37,27 @@ class VASPXMLDiretoryPropertyCalculator(PropertyCalculator):
     """
 
     def __init__(self, name:
-                  str, directory: str,
-                  base_name: str, 
-                  index: Union[int, slice, str] = ':',
-                 has_energy: bool = True, has_forces: bool = True, has_stress: bool = True):
-        super().__init__(name, has_energy, has_forces, has_stress)
-        self.directory: str = directory
-        self.base_name: str = base_name
-        self.index: Union[int, slice, str] = index
+                  str, has_energy: bool = True, has_forces: bool = True, has_stress: bool = True, **kwargs):
+        '''
+        Initialise a VASPXMLDiretoryPropertyCalculator.
 
-    def compute_properties(self, frames: 'Frames') -> None:
+        Args:
+            name (str): The name of the calculator.
+            has_energy (bool, optional): Whether the calculator can compute energy. Defaults to True.
+            has_forces (bool, optional): Whether the calculator can compute forces. Defaults to True.
+            has_stress (bool, optional): Whether the calculator can compute stress. Defaults to True.
+            **kwargs: Additional keyword arguments for specific calculators.
+                directory (str): Path to the directory containing XML files.
+                base_name (str): Base name used for file matching. Files should be named as "{base_name}_X.xml".
+                index (Union[int, str, slice]): Specifies which XML files to process. Default ':' processes all.
+        '''
+        
+        super().__init__(name, has_energy, has_forces, has_stress)
+        self.directory: str = kwargs.get('directory', None)
+        self.base_name: str = kwargs.get('base_name', 'vasprun_frame')
+        self.index: Union[int, slice, str] = kwargs.get('index', ':')
+
+    def compute_properties(self, frames) -> None:
 
         pattern = re.compile(re.escape(self.base_name) + r"_(\d+)\.xml")
         vasp_files = [f for f in os.listdir(self.directory) if pattern.match(f)]

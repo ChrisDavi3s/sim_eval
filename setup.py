@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sim_eval",
-    version="1.3",
+    version="1.4",
     description="A library for benchmarking simulation methods \
                 using various ASE calculators.",
     author="Chris Davies",
@@ -19,6 +19,8 @@ setup(
     extras_require={
         "nequip": ["nequip"],
         "chgnet": ["chgnet"],
+        "mace": ["mace-torch"],
+        "schnet": ["schnetpack"],
         "all": ["nequip", "chgnet"],
     },
     classifiers=[
@@ -26,5 +28,5 @@ setup(
         "License :: OSI Approved :: Apache 2.0 Licence",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6,<3.12',
+    python_requires='>=3.6,<3.13', # 3.12 required for schnetpack (ugh!)
 )

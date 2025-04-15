@@ -10,17 +10,30 @@ class CHGNetPropertyCalculator(PropertyCalculator):
     """
     Implementation of PropertyCalculator for CHGNet models
     """
-    def __init__(self, name, model_path=None, has_energy=True, has_forces=True, has_stress=True):
+    def __init__(self, name, has_energy=True, has_forces=True, has_stress=True, **kwargs):
+        """
+        Initialize a CHGNetPropertyCalculator.
+
+        Args:
+            name (str): The name of the calculator.
+            has_energy (bool, optional): Whether the calculator can compute energy. Defaults to True.
+            has_forces (bool, optional): Whether the calculator can compute forces. Defaults to True.
+            has_stress (bool, optional): Whether the calculator can compute stress. Defaults to True.
+            **kwargs: Additional keyword arguments for specific calculators.
+                model_path (str, optional): Path to the CHGNet model file. Defaults to None (Ie the default model).
+                device (str, optional): Device to use for computation. Defaults to CHGNet default.
+        """
         if CHGNetCalculator is None:
             raise ImportError("CHGNet is not installed. Please install it using 'pip install chgnet'.")
         super().__init__(name, has_energy, has_forces, has_stress)
-        self.model_path = model_path
-        print(f"Initialized CHGNetPropertyCalculator with model_path={model_path}")
+        self.model_path = kwargs.get('model_path', None)
+        self.device = kwargs.get('device', None)
+        print(f"Initialized CHGNetPropertyCalculator with {self.model_path if self.model_path else 'default model'}")
 
-    def compute_properties(self, frames, device=None):
-        # If model_path is provided, load a specific model. Otherwise, use the default model.
+    def compute_properties(self, frames):
+
         if self.model_path:
-            calc = CHGNetCalculator.from_file(path=self.model_path, device=device)
+            calc = CHGNetCalculator.from_file(path=self.model_path, device= self.device)
         else:
             calc = CHGNetCalculator()
 

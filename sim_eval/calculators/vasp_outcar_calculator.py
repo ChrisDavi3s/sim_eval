@@ -38,13 +38,28 @@ class VASPOUTCARPropertyCalculator(PropertyCalculator):
         raising warnings or errors if there's a mismatch.
     """
 
-    def __init__(self, name: str, outcar_path: str, index: Union[int, str, slice] = ':',
-                 has_energy: bool = True, has_forces: bool = True, has_stress: bool = True):
-        super().__init__(name, has_energy, has_forces, has_stress)
-        self.outcar_path: str = outcar_path
-        self.index: Union[int, str, slice] = index
+    def __init__(self, name: str, has_energy: bool = True, has_forces: bool = True, has_stress: bool = True, **kwargs):
+        '''
+        Initialize a VASPOUTCARPropertyCalculator.
 
-    def compute_properties(self, frames: 'Frames') -> None: # noqa F821
+        Args:
+            name (str): The name of the calculator.
+            has_energy (bool, optional): Whether the calculator can compute energy. Defaults to True.
+            has_forces (bool, optional): Whether the calculator can compute forces. Defaults to True.
+            has_stress (bool, optional): Whether the calculator can compute stress. Defaults to True.
+            **kwargs: Additional keyword arguments for specific calculators.
+                outcar_path (str): Path to the OUTCAR file.
+                index (Union[int, str, slice]): Which frame(s) to read from the OUTCAR file.
+                    Default ':' reads all frames. Can be an integer for a specific frame,
+                    or a slice object for a range of frames.
+        '''
+        
+        super().__init__(name, has_energy, has_forces, has_stress)
+        self.outcar_path: str = kwargs.get('outcar_path', None)
+    
+        self.index: Union[int, str, slice] = kwargs.get('index', ':')
+
+    def compute_properties(self, frames) -> None: # noqa F821
         """
         Compute properties for the given frames using the VASP OUTCAR file.
 

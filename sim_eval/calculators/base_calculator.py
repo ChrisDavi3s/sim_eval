@@ -13,10 +13,11 @@ class PropertyCalculator:
         has_energy (bool): Whether the calculator can compute energy.
         has_forces (bool): Whether the calculator can compute forces.
         has_stress (bool): Whether the calculator can compute stress.
+        kwargs (dict): Additional keyword arguments for specific calculators.
     '''
 
 
-    def __init__(self, name, has_energy=True, has_forces=True, has_stress=True):
+    def __init__(self, name, has_energy=True, has_forces=True, has_stress=True, **kwargs):
         """
         Initialize a PropertyCalculator.
 
@@ -25,6 +26,7 @@ class PropertyCalculator:
             has_energy (bool, optional): Whether the calculator can compute energy. Defaults to True.
             has_forces (bool, optional): Whether the calculator can compute forces. Defaults to True.
             has_stress (bool, optional): Whether the calculator can compute stress. Defaults to True.
+            **kwargs: Additional keyword arguments for specific calculators. Implemented in subclasses.
         """
         self.name = name
         self.has_energy = has_energy

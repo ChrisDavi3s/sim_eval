@@ -31,6 +31,12 @@ except ImportError:
     warnings.warn("MACE is not installed. MACEPropertyCalculator will not be available. To use it, install MACE using 'pip install mace-torch'", ImportWarning)
     MACEPropertyCalculator = None
 
+try:
+    from .schnet_calculator import SchnetPropertyCalculator
+except ImportError:
+    warnings.warn("Schnet is not installed. SchnetPropertyCalculator will not be available. To use it, install Schnet using 'pip install schnetpack'", ImportWarning)
+    SchnetPropertyCalculator = None
+
 # Define __all__
 __all__ = ['PropertyCalculator', 'VASPXMLDiretoryPropertyCalculator', 'VASPOUTCARPropertyCalculator', 'VASPOUTCARDirectoryPropertyCalculator']
 
@@ -41,3 +47,5 @@ if CHGNetPropertyCalculator is not None:
     __all__.append('CHGNetPropertyCalculator')
 if MACEPropertyCalculator is not None:
     __all__.append('MACEPropertyCalculator')
+if SchnetPropertyCalculator is not None:
+    __all__.append('SchnetPropertyCalculator')

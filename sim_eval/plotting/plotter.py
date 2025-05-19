@@ -256,31 +256,82 @@ class Plotter:
 
         for prop, is_per_atom in zip(property_name, per_atom):
             property_metric = Plotter._get_property_metric(prop, is_per_atom)
+            # Grouping only makes sense for forces and when per_atom is True
+            should_group = group_per_species and property_metric.property_type == Property.FORCES and is_per_atom
 
-            if property_metric.property_type == Property.FORCES and group_per_species:
-                if not is_per_atom:
-                    warn("Grouping per species only works for per-atom metrics. Defaulting to no grouping.")
+            if group_per_species and property_metric.property_type == Property.FORCES and not is_per_atom:
+                warn("Grouping per species requested for forces, but 'per_atom' is False. Metrics will not be grouped by species.")
+                should_group = False # Ensure grouping is disabled
 
             print(f"\n{prop.capitalize()} Metrics (vs {reference_calculator.name}):")
             print("----")
+
+            # Get reference data once per property
+            reference_data = frames.get_flattened_property_magnitude(property_metric, reference_calculator, frame_number)
+
             for target_calc in target_calculators:
-                mae = frames.get_mae(property_metric, reference_calculator, target_calc, frame_number)
-                rmse = frames.get_rmse(property_metric, reference_calculator, target_calc, frame_number)
-                correlation = frames.get_correlation(property_metric, reference_calculator, target_calc, frame_number)
+                target_data = frames.get_flattened_property_magnitude(property_metric, target_calc, frame_number)
+
+                # Ensure data shapes match before calculating metrics
+                if reference_data.shape != target_data.shape:
+                     warn(f"Data shape mismatch for {prop} between {reference_calculator.name} ({reference_data.shape}) and {target_calc.name} ({target_data.shape}). Skipping metrics for this calculator.")
+                     continue
+
+                # Calculate overall metrics
+                mae_overall = np.mean(np.abs(reference_data - target_data))
+                rmse_overall = np.sqrt(np.mean((reference_data - target_data)**2))
+                # Handle potential NaN in correlation if variance is zero or data is constant
+                correlation_overall = 0.0 # Default
+                if np.var(reference_data) > 1e-9 and np.var(target_data) > 1e-9 and reference_data.size > 1: # Add tolerance and size check
+                    correlation_overall = np.corrcoef(reference_data, target_data)[0, 1]
+                    if np.isnan(correlation_overall):
+                        correlation_overall = 0.0 # Set to 0 if corrcoef returns NaN
 
                 print(f"\n  {target_calc.name}:")
-                print(Plotter._format_metrics(property_metric, np.mean(mae), np.mean(rmse), np.mean(correlation), "    "))
+                print(Plotter._format_metrics(property_metric, mae_overall, rmse_overall, correlation_overall, "    "))
 
-                if group_per_species and prop.lower() == 'forces' and is_per_atom:
+                if should_group:
                     print('\n    Per Atom Type:')
+                    # Assuming get_atom_types_and_indices returns Dict[str, List[int]]
                     atoms_dict = frames.get_atom_types_and_indices(frame_number)
-                    for atom_type, indices in atoms_dict.items():
-                        mae_per_atom = mae.squeeze()
-                        rmse_per_atom = rmse.squeeze()
-                        correlation_per_atom = correlation.squeeze()
-                        print(f"    {atom_type}:")
-                        print(Plotter._format_metrics(property_metric, np.mean(mae_per_atom), np.mean(rmse_per_atom), np.mean(correlation_per_atom), "      "))        
+                    if not atoms_dict:
+                         print("      Could not retrieve atom types and indices for grouping.")
+                         continue # Skip species grouping if dict is empty
 
+                    for atom_type, indices in atoms_dict.items():
+                        if not indices: # Check if the list of indices is empty
+                            print(f"      {atom_type}: No data points found (empty index list).")
+                            continue
+                        try:
+                            ref_subset = reference_data[indices]
+                            target_subset = target_data[indices]
+                        except IndexError as e:
+                            print(f"      {atom_type}: Error indexing data - {e}. Max index in list: {max(indices) if indices else 'N/A'}, Data length: {len(reference_data)}")
+                            continue
+
+
+                        if ref_subset.size == 0: # Check if subset is empty after indexing
+                            print(f"      {atom_type}: No data points after indexing.")
+                            continue
+
+                        # Calculate metrics for this specific species
+                        mae_species = np.mean(np.abs(ref_subset - target_subset))
+                        rmse_species = np.sqrt(np.mean((ref_subset - target_subset)**2))
+
+                        # Handle correlation calculation edge cases for subsets
+                        correlation_species = 0.0 # Default
+                        # Add tolerance and size check for variance
+                        if np.var(ref_subset) > 1e-9 and np.var(target_subset) > 1e-9 and ref_subset.size > 1:
+                             correlation_species = np.corrcoef(ref_subset, target_subset)[0, 1]
+                             if np.isnan(correlation_species):
+                                 correlation_species = 0.0 # Handle NaN from corrcoef
+
+                        print(f"      {atom_type}:")
+                        print(Plotter._format_metrics(property_metric,
+                                                    mae_species,
+                                                    rmse_species,
+                                                    correlation_species,
+                                                    "        ")) # Indent further for species
     @staticmethod
     def plot_scatter(frames: Frames,
                 property_name: Union[str, List[str]],
